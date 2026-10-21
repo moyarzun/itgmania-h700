@@ -412,15 +412,31 @@ bool Alsa9Buf::Recover(int r) {
 }
 
 int64_t Alsa9Buf::GetPosition() const {
-  if (dsnd_pcm_state(pcm) == SND_PCM_STATE_PREPARED) {
+  // SND_PCM_STATE_XRUN (the instant an underrun happens, before Recover()
+  // gets a chance to snd_pcm_prepare() it back to PREPARED) used to fall
+  // through to dsnd_pcm_delay() below. snd_pcm_delay() returns -EPIPE for a
+  // stream in XRUN and never touches its out-param on failure, so "delay"
+  // stayed as whatever garbage happened to be on the stack, and
+  // last_cursor_pos - delay could come out as a wild, effectively random
+  // frame count fed into the engine's music-position clock. Confirmed via a
+  // live gdb backtrace of a real hang on the main stepmania_port fork
+  // (100% CPU spinning inside NoteDataWithScoring::MinTapNoteScore because
+  // Player::UpdateJudgedRows() used that garbage position as its per-frame
+  // scan bound). Treat XRUN the same as PREPARED, and bail out to the last
+  // known-good position on any other delay-query error too.
+  snd_pcm_state_t state = dsnd_pcm_state(pcm);
+  if (state == SND_PCM_STATE_PREPARED || state == SND_PCM_STATE_XRUN) {
     return last_cursor_pos;
   }
 
   dsnd_pcm_hwsync(pcm);
 
   /* delay is returned in frames */
-  snd_pcm_sframes_t delay;
+  snd_pcm_sframes_t delay = 0;
   int err = dsnd_pcm_delay(pcm, &delay);
+  if (err < 0) {
+    return last_cursor_pos;
+  }
   ALSA_ASSERT("dsnd_pcm_delay");
 
   return last_cursor_pos - delay;

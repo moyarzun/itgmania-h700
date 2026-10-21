@@ -1720,6 +1720,14 @@ void Player::UpdateHoldNotes(
 }
 
 void Player::ApplyWaitingTransforms() {
+  // This function runs every frame from Update(); early-return in the
+  // (overwhelmingly common) case nothing is queued so the iterator
+  // recreation below -- needed only when TransformNoteData actually
+  // mutates m_NoteData -- doesn't run on every single frame of every song.
+  if (m_pPlayerState->m_ModsToApply.empty()) {
+    return;
+  }
+
   for (unsigned j = 0; j < m_pPlayerState->m_ModsToApply.size(); j++) {
     const Attack& mod = m_pPlayerState->m_ModsToApply[j];
     PlayerOptions po;
@@ -1745,6 +1753,47 @@ void Player::ApplyWaitingTransforms() {
         BeatToNoteRow(fStartBeat), BeatToNoteRow(fEndBeat));
   }
   m_pPlayerState->m_ModsToApply.clear();
+
+  // TransformNoteData above can insert/erase TapNotes in m_NoteData's
+  // per-track maps -- that's the whole point of course Attack mods like
+  // Wide/Big/Skippy/Mines, which are only ever queued into m_ModsToApply by
+  // course play (see PlayerState::LaunchAttack), never plain Standard
+  // single-song mode. Load() (above) is the only other place that creates
+  // m_pIterNeedsTapJudging/m_pIterNeedsHoldJudging/m_pIterUncrossedRows/
+  // m_pIterUnjudgedRows/m_pIterUnjudgedMineRows, and it only runs once per
+  // song -- an Attack applied mid-song left all five pointing at whatever
+  // nodes used to be there, so the next increment past a node one of them
+  // erased was incrementing a freed std::map node. Confirmed on the main
+  // stepmania_port fork via a live core dump: std::_Rb_tree_increment
+  // crashing inside Player::UpdateJudgedRows during a Nonstop course's
+  // second song (Standard mode never reaches this function with anything
+  // queued); this file is otherwise unchanged from that fork's, so the same
+  // bug applies here identically. Recreate all five against the
+  // just-transformed data, exactly like Load() does, so judging continues
+  // correctly from the current row instead of crashing on the next frame
+  // that touches the erased track.
+  const int iNoteRow =
+      BeatToNoteRowNotRounded(m_pPlayerState->m_Position.m_fSongBeat);
+
+  RageUtil::SafeDelete(m_pIterNeedsTapJudging);
+  m_pIterNeedsTapJudging = new NoteData::all_tracks_iterator(
+      m_NoteData.GetTapNoteRangeAllTracks(iNoteRow, MAX_NOTE_ROW));
+
+  RageUtil::SafeDelete(m_pIterNeedsHoldJudging);
+  m_pIterNeedsHoldJudging = new NoteData::all_tracks_iterator(
+      m_NoteData.GetTapNoteRangeAllTracks(iNoteRow, MAX_NOTE_ROW));
+
+  RageUtil::SafeDelete(m_pIterUncrossedRows);
+  m_pIterUncrossedRows = new NoteData::all_tracks_iterator(
+      m_NoteData.GetTapNoteRangeAllTracks(iNoteRow, MAX_NOTE_ROW));
+
+  RageUtil::SafeDelete(m_pIterUnjudgedRows);
+  m_pIterUnjudgedRows = new NoteData::all_tracks_iterator(
+      m_NoteData.GetTapNoteRangeAllTracks(iNoteRow, MAX_NOTE_ROW));
+
+  RageUtil::SafeDelete(m_pIterUnjudgedMineRows);
+  m_pIterUnjudgedMineRows = new NoteData::all_tracks_iterator(
+      m_NoteData.GetTapNoteRangeAllTracks(iNoteRow, MAX_NOTE_ROW));
 }
 
 void Player::DrawPrimitives() {

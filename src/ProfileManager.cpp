@@ -871,6 +871,7 @@ void ProfileManager::AddLocalProfileByID(
   DirAndProfile derp;
   derp.sDir = LocalProfileIDToDir(sProfileID);
   derp.profile = *pProfile;
+  delete pProfile;
   InsertProfileIntoList(derp);
 }
 
