@@ -17,6 +17,18 @@
 #include "archutils/Unix/EmergencyShutdown.h"
 #include "archutils/Unix/GetSysInfo.h"
 #include "archutils/Unix/SignalHandler.h"
+
+// These are normally #defined by src/CMakeLists.txt, gated behind
+// WITH_CRASH_HANDLER -- if that's off (as it is on this port; the crash
+// handler crashes itself under some conditions on this hardware),
+// DumpDebugInfo() below would otherwise reference undefined macros.
+#ifndef BACKTRACE_METHOD_TEXT
+#define BACKTRACE_METHOD_TEXT "disabled"
+#endif
+#ifndef BACKTRACE_LOOKUP_METHOD_TEXT
+#define BACKTRACE_LOOKUP_METHOD_TEXT "disabled"
+#endif
+
 #if defined(LINUX)
 #include <limits.h>
 #endif

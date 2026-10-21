@@ -182,6 +182,18 @@ elseif(LINUX OR BSD)
     set(HAS_X11 TRUE)
   endif()
 
+  # Prefer SDL2 over X11/GLX for the LowLevelWindow backend when available:
+  # this lets the H700/muOS target (a handheld with no X11/Wayland/DRM,
+  # only a vendor "mali" fbdev+EGL+GLESv2 blob reached through the
+  # system's mali-enabled SDL2) skip X11 entirely. See
+  # src/arch/LowLevelWindow/LowLevelWindow_SDL.cpp for the rationale.
+  find_package(SDL2 CONFIG QUIET)
+  if(${SDL2_FOUND})
+    set(HAS_SDL2 TRUE)
+  else()
+    set(HAS_SDL2 FALSE)
+  endif()
+
   set(HAS_XRANDR FALSE)
   if(WITH_XRANDR)
     find_package(Xrandr REQUIRED)
@@ -244,7 +256,17 @@ elseif(LINUX OR BSD)
 
   include("${SM_CMAKE_DIR}/SetupFfmpeg.cmake")
 
-  set(OpenGL_GL_PREFERENCE GLVND)
+  # GLVND's libOpenGL.so unconditionally depends on libGLX.so.0 at the ELF
+  # level (part of how glvnd dispatches gl* calls), even though this target
+  # never calls a real GLX function -- SDL2's "mali" video driver creates
+  # the GL context through gl4es's EGL-aware libEGL.so.1/libGL.so.1 pair
+  # directly, with no X server and no GLVND vendor JSON on the device at
+  # all. Linking the GLVND split libs here would either fail to load
+  # (libGLX.so.0 isn't in our shipped lib/ dir) or, worse, silently route
+  # gl* calls through glvnd's dispatcher instead of gl4es, since gl4es
+  # isn't a registered glvnd vendor. Use the legacy single libGL.so target
+  # instead, matching how the main stepmania_port fork links.
+  set(OpenGL_GL_PREFERENCE LEGACY)
   find_package(OpenGL REQUIRED)
   if (NOT OPENGL_GLU_FOUND)  # it's an optional component of OpenGL, but we use it for glew build
     message(FATAL_ERROR "libglu was not found")

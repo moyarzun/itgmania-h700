@@ -59,6 +59,20 @@ if(MACOSX)
       "Unsupported macOS architecture: ${CMAKE_OSX_ARCHITECTURES}, set CMAKE_OSX_ARCHITECTURES to either arm64 or x86_64"
     )
   endif()
+elseif(LINUX AND CMAKE_CROSSCOMPILING)
+  # Upstream only handles cross-compiling for macOS above; nothing here
+  # covers cross-compiling Linux-to-Linux (e.g. an aarch64 target from an
+  # x86_64 build host), so without this branch FFmpeg's ./configure runs as
+  # if it were a native build and tries to execute target-arch test binaries
+  # on the host, which fails under qemu-less cross toolchains like ours.
+  list(APPEND FFMPEG_CONFIGURE "--enable-cross-compile")
+  list(APPEND FFMPEG_CONFIGURE "--target-os=linux")
+  list(APPEND FFMPEG_CONFIGURE "--arch=${CMAKE_SYSTEM_PROCESSOR}")
+  string(REGEX REPLACE "gcc$" "" FFMPEG_CROSS_PREFIX "${CMAKE_C_COMPILER}")
+  list(APPEND FFMPEG_CONFIGURE "--cross-prefix=${FFMPEG_CROSS_PREFIX}")
+  if(CMAKE_SYSROOT)
+    list(APPEND FFMPEG_CONFIGURE "--sysroot=${CMAKE_SYSROOT}")
+  endif()
 endif()
 
 if(NOT WITH_EXTERNAL_WARNINGS)

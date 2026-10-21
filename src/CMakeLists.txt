@@ -456,11 +456,18 @@ elseif(APPLE)
               "${MAC_FRAME_COREVIDEO}"
               "${MAC_FRAME_VIDEOTOOLBOX}")
 else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
+  # FFmpeg's static libs have real circular symbol references between
+  # avformat/avcodec/avutil (not a clean DAG), so a single left-to-right
+  # pass over them isn't enough with this cross toolchain's linker --
+  # wrap them in --start-group/--end-group so it keeps re-scanning the set
+  # until everything resolves, regardless of order.
   list(APPEND SMDATA_LINK_LIB
+              "-Wl,--start-group"
               "${SM_FFMPEG_LIB}/libavformat.a"
               "${SM_FFMPEG_LIB}/libavcodec.a"
               "${SM_FFMPEG_LIB}/libswscale.a"
-              "${SM_FFMPEG_LIB}/libavutil.a")
+              "${SM_FFMPEG_LIB}/libavutil.a"
+              "-Wl,--end-group")
 
   list(REMOVE_ITEM SMDATA_LINK_LIB "zlib")
   list(APPEND SMDATA_LINK_LIB "zlib"
@@ -488,6 +495,11 @@ else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
 
   if(HAS_PULSE)
     list(APPEND SMDATA_LINK_LIB ${PULSEAUDIO_LIBRARY})
+  endif()
+
+  if(HAS_SDL2)
+    target_compile_definitions("${SM_EXE_NAME}" PRIVATE HAVE_SDL2_LOWLEVELWINDOW)
+    list(APPEND SMDATA_LINK_LIB SDL2::SDL2)
   endif()
 
   if(X11_FOUND)

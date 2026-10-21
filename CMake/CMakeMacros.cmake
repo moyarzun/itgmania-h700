@@ -75,6 +75,15 @@ function(sm_get_forwarded_toolchain_args out_var)
       "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
       "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
       "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+  # Cross-compiling: without forwarding the toolchain file (which sets
+  # CMAKE_SYSROOT/CMAKE_FIND_ROOT_PATH/CMAKE_SYSTEM_NAME), these nested
+  # ExternalProject_Add sub-builds only inherit the compiler binary, not the
+  # sysroot -- they then fall back to the cross-compiler's own built-in
+  # default sysroot, which doesn't have our target's extra dev packages
+  # (e.g. libusb's libudev.h lookup failed this way).
+  if(CMAKE_TOOLCHAIN_FILE)
+    list(APPEND toolchain_args "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
+  endif()
   foreach(lang C CXX)
     if(CMAKE_${lang}_COMPILER_LAUNCHER)
       string(REPLACE ";" "|" launcher "${CMAKE_${lang}_COMPILER_LAUNCHER}")
