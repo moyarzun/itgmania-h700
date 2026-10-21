@@ -112,3 +112,4 @@ BuildLog.htm
 /build-h700/
 /h700/cross/sysroot-aarch64/
 /h700/dist/
+!/h700/patches/*.patch

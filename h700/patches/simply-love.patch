@@ -1,0 +1,1566 @@
+diff --git a/BGAnimations/ScreenGameplay in/default.lua b/BGAnimations/ScreenGameplay in/default.lua
+index 7bcad6b..dee1f30 100755
+--- a/BGAnimations/ScreenGameplay in/default.lua	
++++ b/BGAnimations/ScreenGameplay in/default.lua	
+@@ -24,7 +24,8 @@ elseif not PREFSMAN:GetPreference("EventMode") then
+ 	text = THEME:GetString("Stage", "Stage") .. " " .. tostring(SL.Global.Stages.PlayedThisGame + 1)
+ 
+ else
+-	text = THEME:GetString("Stage", "Event")
++	-- device port: no "Event" stage text in Event Mode
++	text = ""
+ end
+ 
+ InitializeMeasureCounterAndModsLevel(SongNumberInCourse)
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Banner.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Banner.lua
+index ee9d927..b46e596 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Banner.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Banner.lua	
+@@ -18,6 +18,11 @@ return Def.Banner{
+ 			if NoteFieldIsCentered and IsUsingWideScreen() then
+ 				self:x( 72 * (player==PLAYER_1 and 1 or -1) )
+ 			end
++			-- device port: top of the left box (see StepStatistics/default.lua)
++			if SL_DEVICE.StepStats.active then
++				self:zoom( SL_DEVICE.BannerW / 418 / SL_DEVICE.StepStats.zoom )
++				self:xy( SL_DEVICE.SSLocal(SL_DEVICE.BannerCenter[1], SL_DEVICE.BannerCenter[2]) )
++			end
+ 
+ 			-- ultrawide and both players joined
+ 			if IsUltraWide and #GAMESTATE:GetHumanPlayers() > 1 then
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DarkBackground.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DarkBackground.lua
+index a69782e..51db751 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DarkBackground.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DarkBackground.lua	
+@@ -8,6 +8,12 @@ if style ~= "double" then
+ 	return Def.Quad{
+ 		InitCommand=function(self)
+ 			self:diffuse(0, 0, 0, alpha):setsize(width, _screen.h):y(-header_height)
++			-- device port: no full-height pane background; the judgments get their
++			-- own rounded box (RoundedBox.lua) so the song background and the
++			-- danger flash stay visible around it
++			if SL_DEVICE.StepStats.active then
++				self:visible(false)
++			end
+ 		end
+ 	}
+ else
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DensityGraph.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DensityGraph.lua
+index 593a726..a4ee21b 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DensityGraph.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/DensityGraph.lua	
+@@ -6,6 +6,8 @@ if style == "double" then width = width * 0.95 end
+ local pn = ToEnumShortString(player)
+ -- height is how tall, in pixels, the density graph will be
+ local height = 105
++-- device port: smaller graph in the left column (was sidepane width x 105)
++if SL_DEVICE.StepStats.active then width, height = SL_DEVICE.GraphW, SL_DEVICE.GraphH end
+ 
+ local LifeBaseSampleRate = 0.25
+ local LifeLineThickness = 2
+@@ -23,6 +25,8 @@ and SL.P2.ActiveModifiers.DataVisualizations == "Step Statistics")
+ -- -----------------------------------------------------------------------
+ local mods = SL[pn].ActiveModifiers
+ local FilterAlpha = clamp(BackgroundFilterValues()[mods.BackgroundFilter]/100 or 0, 0.25, 1)
++-- device port: keep the graph translucent so the danger flash shows through
++if SL_DEVICE.StepStats.active then FilterAlpha = math.min(FilterAlpha, 0.5) end
+ -- max_seconds is how many seconds of a stepchart we want visualized on-screen at once.
+ -- For very long songs (longer than, say, 10 minutes) the density graph becomes too
+ -- horizontally compressed (squeezed in, so to speak) and it's dificult to get any useful
+@@ -41,7 +45,10 @@ local UpdateRate, first_second, last_second
+ 
+ local af = Def.ActorFrame{
+ 	InitCommand=function(self)
+-		if style ~= "double" then
++		if SL_DEVICE.StepStats.active then
++			-- device port: bottom of the left box (see StepStatistics/default.lua)
++			self:xy(SL_DEVICE.LeftInnerX - SL_DEVICE.StepStats.x, SL_DEVICE.GraphTop - SL_DEVICE.StepStats.y)
++		elseif style ~= "double" then
+ 			self:xy(pos_x, 55)
+ 		else
+ 			self:xy(260, 40)
+@@ -127,6 +134,8 @@ local text = LoadFont("Common Normal")..{
+ 			if IsUltraWide and #GAMESTATE:GetHumanPlayers() > 1 then
+ 				self:x(52)
+ 			end
++			-- device port: left-aligned over the graph's left edge
++			if SL_DEVICE.StepStats.active then self:halign(0):x(0) end
+ 		else
+ 			self:x(SL_WideScale(6,130))
+ 			if NoteFieldIsCentered then
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/HoldsMinesRolls.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/HoldsMinesRolls.lua
+index 59e0437..e9597a6 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/HoldsMinesRolls.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/HoldsMinesRolls.lua	
+@@ -97,6 +97,12 @@ af.InitCommand=function(self)
+ 		if NoteFieldIsCentered and IsUsingWideScreen() then
+ 			self:x( player==PLAYER_1 and 155 or -88 )
+ 		end
++		-- device port: directly under the judgment counters, right-aligned with them
++		if SL_DEVICE.StepStats.active then
++			-- rows 7..9 of the judgments column, same scale and spacing
++			self:zoom( SL_DEVICE.JudgScale )
++			self:xy( SL_DEVICE.SSLocal(SL_DEVICE.JudgRight, SL_DEVICE.JudgFirstY + 6 * SL_DEVICE.JudgRow) )
++		end
+ 
+ 		-- adjust for smaller panes when ultrawide and both players joined
+ 		if IsUltraWide and #GAMESTATE:GetHumanPlayers() > 1 then
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/RoundedBox.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/RoundedBox.lua
+new file mode 100644
+index 0000000..26326c5
+--- /dev/null
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/RoundedBox.lua	
+@@ -0,0 +1,33 @@
++-- device port: translucent black box with rounded corners, drawn as a single
++-- triangle fan (so the alpha is uniform -- overlapping quads would double it).
++-- args: { left, top, right, bottom, radius, alpha } in the parent's coordinates
++local l, t, r, b, rad, alpha = unpack(...)
++local segments = 6
++local color = {0, 0, 0, alpha}
++
++local cx, cy = (l + r) / 2, (t + b) / 2
++local verts = { {{cx, cy, 0}, color} }
++
++-- corner centers and their start angles, walking the perimeter clockwise
++local corners = {
++	{ r - rad, t + rad, -90 }, -- top-right
++	{ r - rad, b - rad,   0 }, -- bottom-right
++	{ l + rad, b - rad,  90 }, -- bottom-left
++	{ l + rad, t + rad, 180 }, -- top-left
++}
++for c in ivalues(corners) do
++	for i = 0, segments do
++		local a = math.rad(c[3] + 90 * i / segments)
++		verts[#verts+1] = { {c[1] + rad * math.cos(a), c[2] + rad * math.sin(a), 0}, color }
++	end
++end
++-- close the fan
++verts[#verts+1] = verts[2]
++
++return Def.ActorMultiVertex{
++	Name="JudgmentsBox",
++	InitCommand=function(self)
++		self:SetDrawState{ Mode="DrawMode_Fan" }
++		self:SetVertices(verts)
++	end
++}
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/TapNoteJudgments.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/TapNoteJudgments.lua
+index f872c85..086711b 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/TapNoteJudgments.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/TapNoteJudgments.lua	
+@@ -84,6 +84,16 @@ af.InitCommand=function(self)
+ 		if IsUltraWide and #GAMESTATE:GetHumanPlayers() > 1 then
+ 			self:x( 154 * (player==PLAYER_1 and 1 or -1))
+ 		end
++
++		-- device port: right edge of the counts 60px from the screen's right edge
++		if SL_DEVICE.StepStats.active then
++			-- scaled up and placed so the first row lands on JudgFirstY
++			-- (rows sit at (index-1)*row_height - 280 inside this frame)
++			local z = 0.8 * SL_DEVICE.JudgScale
++			self:zoom(z)
++			self:x( (SL_DEVICE.SSLocal(SL_DEVICE.JudgRight, 0)) )
++			self:y( (SL_DEVICE.JudgFirstY - SL_DEVICE.StepStats.y) / SL_DEVICE.StepStats.zoom + z * 280 )
++		end
+ 	else
+ 		self:zoom(0.8)
+ 		self:x(-GetNotefieldWidth() + 75):y(0 + 40)
+@@ -110,6 +120,9 @@ for index, window in ipairs(TNS.Types) do
+ 				self:halign( PlayerNumber:Reverse()[OtherPlayer[player]] )
+ 			end
+ 
++			-- device port: counts right-aligned (labels go to their left)
++			if SL_DEVICE.StepStats.active then self:halign(1) end
++
+ 			if windows[index] or index==#TNS.Types then
+ 				self:diffuse( TNS.Colors[index] )
+ 				leadingZeroAttr = { Length=(digits-1), Diffuse=Brightness(self:GetDiffuse(), 0.35) }
+@@ -185,6 +198,11 @@ for index, window in ipairs(TNS.Types) do
+ 						self:halign( PlayerNumber:Reverse()[OtherPlayer[player]] )
+ 						self:x(self:GetX() * -1)
+ 					end
++
++					-- device port: label to the left of its right-aligned count
++					if SL_DEVICE.StepStats.active then
++						self:halign(1):x( -80 - (digits-4)*16 )
++					end
+ 				end,
+ 			}
+ 		end
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Time.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Time.lua
+index fc70958..264147e 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Time.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/Time.lua	
+@@ -143,6 +143,13 @@ af.InitCommand=function(self)
+ 		if NoteFieldIsCentered and IsUsingWideScreen() then
+ 			self:x( 154 * (player==PLAYER_1 and -1 or 1) )
+ 		end
++		-- device port: just right of the song progress bar, scaled 1.85x so the two
++		-- lines span the same height as the life bar + difficulty/score block on
++		-- the left (screen y ~9..70); the frame's y is the first line's baseline
++		if SL_DEVICE.StepStats.active then
++			self:zoom(1.85)
++			self:xy( SL_DEVICE.SSLocal(645, 33) )
++		end
+ 
+ 		-- flip alignment when ultrawide and both players joined
+ 		if IsUltraWide and #GAMESTATE:GetHumanPlayers() > 1 then
+diff --git a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/default.lua b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/default.lua
+index b59998b..df794a8 100644
+--- a/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/default.lua	
++++ b/BGAnimations/ScreenGameplay underlay/PerPlayer/StepStatistics/default.lua	
+@@ -57,6 +57,20 @@ else
+ 	end
+ end
+ 
++-- device port: fallbacks for the SL-DeviceLayout.lua values, in case the theme
++-- files were updated without restarting (Scripts/ only load at startup)
++SL_DEVICE.GameplayCenterY = SL_DEVICE.GameplayCenterY or 267
++SL_DEVICE.GameplayLeftTop = SL_DEVICE.GameplayLeftTop or (SL_DEVICE.GameplayCenterY - 107)
++SL_DEVICE.GameplayRightShift = SL_DEVICE.GameplayRightShift or (SL_DEVICE.GameplayCenterY - 218.5)
++
++-- device port: record the pane origin + BannerAndData zoom so the pieces can
++-- relocate themselves (banner/graph to the left of the notefield, etc.)
++SL_DEVICE.StepStats.active = (not IsUltraWide) and NoteFieldIsCentered and IsUsingWideScreen()
++	and stylename == "single" and #GAMESTATE:GetHumanPlayers() == 1
++SL_DEVICE.StepStats.x = sidepane_pos_x
++SL_DEVICE.StepStats.y = _screen.cy + header_height
++SL_DEVICE.StepStats.zoom = scale(GetScreenAspectRatio(), 16/10, 16/9, 0.825, 0.925)
++
+ -- -----------------------------------------------------------------------
+ 
+ local af = Def.ActorFrame{}
+@@ -68,6 +82,50 @@ end
+ 
+ af[#af+1] = LoadActor("./DarkBackground.lua", {player, header_height, sidepane_width})
+ 
++-- device port: judgments + holds/mines/rolls are scaled up by JudgScale and laid
++-- out as 9 evenly spaced rows (6 judgments, 3 HMR) vertically centered on
++-- GameplayCenterY, right edge 60px from the screen edge, with a rounded
++-- translucent box behind them.  Screen coordinates, converted to pane coords.
++if SL_DEVICE.StepStats.active then
++	local s = SL_DEVICE.StepStats
++	local k = 1.3
++	SL_DEVICE.JudgScale = k
++	-- judgment rows are 35 apart inside a 0.8-zoomed frame (HMR: 28 at zoom 1)
++	SL_DEVICE.JudgRow = s.zoom * 0.8 * k * 35
++	SL_DEVICE.JudgFirstY = SL_DEVICE.GameplayCenterY - 4 * SL_DEVICE.JudgRow
++
++	-- two identical boxes, each centered in its own third of the screen (the
++	-- strips left and right of the centered notefield):
++	-- right = judgments + HMR, left = banner + density graph
++	local box_w, pad = 240, 12
++	local nf_half = GetNotefieldWidth() / 2
++	local top    = SL_DEVICE.JudgFirstY - 12 - pad
++	local bottom = SL_DEVICE.JudgFirstY + 8 * SL_DEVICE.JudgRow + 12 + pad
++	local rl = (_screen.cx + nf_half + _screen.w) / 2 - box_w/2 -- right box, left edge
++	local ll = (_screen.cx - nf_half) / 2 - box_w/2             -- left box, left edge
++
++	-- right box: the judgments block (~131px wide at scale 1, right-aligned
++	-- at JudgRight) centered horizontally inside it
++	SL_DEVICE.JudgRight = rl + box_w/2 + 131 * k / 2
++
++	-- left box: banner (full inner width) and the density graph + its Peak NPS
++	-- label (18px + 2), with equal space above, between, and below them
++	local inner_w = box_w - pad * 2
++	SL_DEVICE.LeftInnerX = ll + pad
++	SL_DEVICE.GraphW, SL_DEVICE.GraphH = inner_w, 100
++	SL_DEVICE.BannerW = inner_w
++	local banner_h = inner_w * 164 / 418
++	local g = ((bottom - top) - banner_h - 20 - SL_DEVICE.GraphH) / 3
++	SL_DEVICE.BannerCenter = { ll + box_w/2, top + g + banner_h/2 }
++	SL_DEVICE.GraphTop = bottom - g - SL_DEVICE.GraphH
++
++	for l in ivalues({ rl, ll }) do
++		af[#af+1] = LoadActor("./RoundedBox.lua", {
++			l - s.x, top - s.y, l + box_w - s.x, bottom - s.y, 10, 0.65
++		})
++	end
++end
++
+ -- banner, judgment labels, and judgment numbers will be collectively shrunk
+ -- if Center1Player is enabled to accommodate the smaller space
+ 	af[#af+1] = Def.ActorFrame{
+diff --git a/BGAnimations/ScreenGameplay underlay/Shared/Header.lua b/BGAnimations/ScreenGameplay underlay/Shared/Header.lua
+index 20bf84f..5ea23ee 100644
+--- a/BGAnimations/ScreenGameplay underlay/Shared/Header.lua	
++++ b/BGAnimations/ScreenGameplay underlay/Shared/Header.lua	
+@@ -1,7 +1,9 @@
+ return Def.Quad{
+ 	Name="Header",
+ 	InitCommand=function(self)
+-		self:diffuse(0,0,0,0.85):valign(0):xy( _screen.cx, 0 )
++		-- device port: translucent (was 0.85) so the song background and the
++		-- low-life danger flash show through; drawn first, see default.lua
++		self:diffuse(0,0,0,0.5):valign(0):xy( _screen.cx, 0 )
+ 		self:zoomtowidth(_screen.w):zoomtoheight(80)
+ 	end
+ }
+\ No newline at end of file
+diff --git a/BGAnimations/ScreenGameplay underlay/default.lua b/BGAnimations/ScreenGameplay underlay/default.lua
+index caa41f6..6e8a048 100755
+--- a/BGAnimations/ScreenGameplay underlay/default.lua	
++++ b/BGAnimations/ScreenGameplay underlay/default.lua	
+@@ -60,6 +60,11 @@ local t = Def.ActorFrame{
+ 	end
+ }
+ 
++-- device port: the header band is drawn first (under the danger flash and the
++-- Step Statistics pane) so it neither hides the low-life flash nor dims the
++-- step stats time readout that now sits in the top-right corner
++t[#t+1] = LoadActor("./Shared/Header.lua")
++
+ for player in ivalues(Players) do
+ 	t[#t+1] = LoadActor("./PerPlayer/Danger.lua", player)
+ 	t[#t+1] = LoadActor("./PerPlayer/StepStatistics/default.lua", player)
+@@ -69,7 +74,6 @@ end
+ 
+ -- UI elements shared by both players
+ t[#t+1] = LoadActor("./Shared/VersusStepStatistics.lua")
+-t[#t+1] = LoadActor("./Shared/Header.lua")
+ t[#t+1] = LoadActor("./Shared/SongInfoBar.lua") -- song title and progress bar
+ 
+ -- per-player UI elements
+diff --git a/BGAnimations/ScreenPlayerOptions underlay.lua b/BGAnimations/ScreenPlayerOptions underlay.lua
+index 906e1a2..358c3a9 100644
+--- a/BGAnimations/ScreenPlayerOptions underlay.lua	
++++ b/BGAnimations/ScreenPlayerOptions underlay.lua	
+@@ -9,7 +9,8 @@ return Def.Quad{
+ 		self:diffuse(0,0,0,0)
+ 		self:vertalign(bottom):horizalign(left)
+ 		self:setsize(width, height)
+-		self:xy(x_offset, _screen.h-36)
++		-- device port: 32px lower (was _screen.h-36), using the bottom of the screen
++		self:xy(x_offset, _screen.h-4)
+ 	end,
+ 	OnCommand=function(self)
+ 		self:linear(0.2):diffusealpha(0.8)
+diff --git a/BGAnimations/ScreenSelectMusic overlay/PaneDisplay.lua b/BGAnimations/ScreenSelectMusic overlay/PaneDisplay.lua
+index cba00ee..fadfdde 100644
+--- a/BGAnimations/ScreenSelectMusic overlay/PaneDisplay.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/PaneDisplay.lua	
+@@ -6,9 +6,12 @@ local machine_profile = PROFILEMAN:GetMachineProfile()
+ local footer_height = 32
+ 
+ -- height of the PaneDisplay in pixels
+-local pane_height = 60
++-- (device port: 120, was 60 -- fills the space between the density graph
++-- and the footer, left of the difficulty grid)
++local pane_height = 120
+ 
+-local text_zoom = WideScale(0.8, 0.9)
++-- device port: larger text (was WideScale(0.8, 0.9))
++local text_zoom = 1.4
+ 
+ -- -----------------------------------------------------------------------
+ -- Convenience function to return the SongOrCourse and StepsOrTrail for a
+@@ -229,8 +232,11 @@ end
+ -- -----------------------------------------------------------------------
+ -- define the x positions of four columns, and the y positions of three rows of PaneItems
+ local pos = {
+-	col = { WideScale(-104,-133), WideScale(-36,-38), WideScale(54,76), WideScale(150, 190) },
+-	row = { 13, 31, 49 }
++	-- device port: respaced for the larger text and the taller pane; the
++	-- difficulty meter (col 4) is hidden, so the scores use its width
++	-- (was cols -133/-38/76/190, rows 13/31/49)
++	col = { -148, -40, 140, 190 },
++	row = { 22, 60, 98 }
+ }
+ 
+ local num_rows = 3
+@@ -329,12 +335,14 @@ for player in ivalues(PlayerNumber) do
+ 		self:visible(GAMESTATE:IsHumanPlayer(player))
+ 
+ 		if player == PLAYER_1 then
+-			self:x(_screen.w * 0.25 - 5)
++			-- device port: shrink the P1 pane into the slot the (hidden) pattern
++			-- info used, left of the difficulty grid (x cx-330..cx-44)
++			self:basezoom(286 / (_screen.w/2-10))
++			self:xy(_screen.cx - 187, _screen.cy + 57)
+ 		elseif player == PLAYER_2 then
+ 			self:x(_screen.w * 0.75 + 5)
++			self:y(_screen.h - footer_height - pane_height)
+ 		end
+-
+-		self:y(_screen.h - footer_height - pane_height)
+ 	end
+ 
+ 	af2.PlayerJoinedMessageCommand=function(self, params)
+@@ -567,6 +575,8 @@ for player in ivalues(PlayerNumber) do
+ 	af2[#af2+1] = LoadFont("Wendy/_wendy small")..{
+ 		Name="DifficultyMeter",
+ 		InitCommand=function(self)
++			-- device port: hidden; the difficulty grid beside the pane already shows it
++			self:visible(false)
+ 			self:horizalign(right):diffuse(Color.Black)
+ 			self:xy(pos.col[4], pos.row[2])
+ 			if not IsUsingWideScreen() then self:maxwidth(66) end
+diff --git a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/Cursor.lua b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/Cursor.lua
+index 6c3a545..19ac46e 100644
+--- a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/Cursor.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/Cursor.lua	
+@@ -3,8 +3,14 @@
+ if GAMESTATE:IsCourseMode() then return end
+ -- ----------------------------------------------
+ 
+-local player = ...
++-- device port: accepts either a PlayerNumber or {player=, mirror=true}; the
++-- mirror cursor sits right of the grid pointing left (single player only)
++local arg = ...
++local player, mirror = arg, false
++if type(arg) == "table" then player, mirror = arg.player, arg.mirror end
+ local pn = ToEnumShortString(player)
++local cursor_zoom = 0.85 -- device port: was 0.575
++local cursor_w = 32 * cursor_zoom
+ local p = PlayerNumber:Reverse()[player]
+ 
+ local GetStepsToDisplay = LoadActor("../StepsDisplayList/StepsToDisplay.lua")
+@@ -15,10 +21,10 @@ local RowIndex = 1
+ 
+ return Def.Sprite{
+ 	Texture=THEME:GetPathB("ScreenSelectMusic", "overlay/PerPlayer/arrow.png"),
+-	Name="Cursor"..pn,
++	Name="Cursor"..pn..(mirror and "Mirror" or ""),
+ 	InitCommand=function(self)
+-		self:visible( GAMESTATE:IsHumanPlayer(player) and not auto_style )
+-		self:halign( p ):zoom(0.575)
++		self:visible( GAMESTATE:IsHumanPlayer(player) and not auto_style and (not mirror or not GAMESTATE:IsHumanPlayer(PLAYER_2)) )
++		self:halign( mirror and 1 or p ):zoom(cursor_zoom)
+ 		-- FIXME: SM5.1-beta's EffectClock enum includes constants for
+ 		--   CLOCK_BGM_BEAT_PLAYER1 and CLOCK_BGM_BEAT_PLAYER2 but
+ 		--   but effectclock(), the only method currently available via
+@@ -39,8 +45,14 @@ return Def.Sprite{
+ 		--   one or both are joined.  This would need to be fixed in the engine.
+ 		self:bounce():effectclock("beatnooffset")
+ 
+-		if player == PLAYER_1 then
+-			self:x( IsUsingWideScreen() and _screen.cx-53 or 267)
++		if mirror then
++			-- tip just inside the grid's right edge (cx-10), pointing left
++			self:rotationz(180)
++			self:x(_screen.cx-14)
++			self:effectmagnitude(3,0,0)
++		elseif player == PLAYER_1 then
++			-- tip just inside the grid's left edge (cx-42), pointing right
++			self:x( IsUsingWideScreen() and _screen.cx-38-cursor_w or 267)
+ 			self:effectmagnitude(-3,0,0)
+ 		elseif player == PLAYER_2 then
+ 			self:rotationz(180)
+@@ -52,7 +64,9 @@ return Def.Sprite{
+ 	end,
+ 
+ 	PlayerJoinedMessageCommand=function(self, params)
+-		if params.Player == player then self:visible(not auto_style) end
++		if mirror then
++			self:visible(GAMESTATE:IsHumanPlayer(player) and not auto_style and not GAMESTATE:IsHumanPlayer(PLAYER_2))
++		elseif params.Player == player then self:visible(not auto_style) end
+ 	end,
+ 	PlayerUnjoinedMessageCommand=function(self, params)
+ 		if params.Player == player then self:visible(false) end
+diff --git a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/DensityGraph.lua b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/DensityGraph.lua
+index dd5bff0..a3b9316 100644
+--- a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/DensityGraph.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/DensityGraph.lua	
+@@ -217,10 +217,10 @@ af2[#af2+1] = Def.ActorFrame{
+ 		else
+ 			self:y((autoStyle and 74 or 88) * (player == PLAYER_1 and 1 or -1))
+ 		end
+-		self:visible(GAMESTATE:GetNumSidesJoined() == 1)
++		self:visible(false) -- device port: pattern info hidden
+ 	end,
+ 	PlayerJoinedMessageCommand=function(self, params)
+-		self:visible(GAMESTATE:GetNumSidesJoined() == 1)
++		self:visible(false) -- device port: pattern info hidden
+ 		if GAMESTATE:GetNumSidesJoined() == 2 then
+ 			self:y(0)
+ 		else
+@@ -228,7 +228,7 @@ af2[#af2+1] = Def.ActorFrame{
+ 		end
+ 	end,
+ 	PlayerUnjoinedMessageCommand=function(self, params)
+-		self:visible(GAMESTATE:GetNumSidesJoined() == 1)
++		self:visible(false) -- device port: pattern info hidden
+ 		if GAMESTATE:GetNumSidesJoined() == 2 then
+ 			self:y(0)
+ 		else
+diff --git a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/default.lua b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/default.lua
+index 660ce79..8b46fda 100644
+--- a/BGAnimations/ScreenSelectMusic overlay/PerPlayer/default.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/PerPlayer/default.lua	
+@@ -13,5 +13,7 @@ end
+ for player in ivalues( PlayerNumber ) do
+ 	t[#t+1] = LoadActor("./Cursor.lua", player)
+ end
++-- device port: second P1 cursor on the right side of the grid, pointing left
++t[#t+1] = LoadActor("./Cursor.lua", {player=PLAYER_1, mirror=true})
+ 
+ return t
+\ No newline at end of file
+diff --git a/BGAnimations/ScreenSelectMusic overlay/banner.lua b/BGAnimations/ScreenSelectMusic overlay/banner.lua
+index fdca113..b9bd42a 100644
+--- a/BGAnimations/ScreenSelectMusic overlay/banner.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/banner.lua	
+@@ -6,8 +6,10 @@ local bannerHeight = 164
+ local t = Def.ActorFrame{
+ 	OnCommand=function(self)
+ 		if IsUsingWideScreen() then
+-			self:zoom(0.7655)
+-			self:xy(_screen.cx - 170, 96)
++			-- device port: the left column is zoomed by SL_DEVICE.LeftZoom; keep the
++			-- banner uncropped at its stock on-screen size, top-aligned where it was (y=33)
++			self:zoom(0.7655 / SL_DEVICE.LeftZoom)
++			self:xy(_screen.cx - 170, 33 + bannerHeight * 0.7655 / SL_DEVICE.LeftZoom / 2)
+ 		else
+ 			self:zoom(0.75)
+ 			self:xy(_screen.cx - 166, 96)
+diff --git a/BGAnimations/ScreenSelectMusic overlay/default.lua b/BGAnimations/ScreenSelectMusic overlay/default.lua
+index 8f2a046..b67315a 100755
+--- a/BGAnimations/ScreenSelectMusic overlay/default.lua	
++++ b/BGAnimations/ScreenSelectMusic overlay/default.lua	
+@@ -62,19 +62,33 @@ local af = Def.ActorFrame{
+ 	-- make the MusicWheel appear to cascade down; this should draw underneath P2's PaneDisplay
+ 	LoadActor("./MusicWheelAnimation.lua"),
+ 
+-	-- number of steps, jumps, holds, etc., and high scores associated with the current stepchart
+-	LoadActor("./PaneDisplay.lua"),
++	-- device port: the whole left column is zoomed by SL_DEVICE.LeftZoom and
++	-- pinned to the left edge (see Scripts/SL-DeviceLayout.lua).  The banner
++	-- keeps its stock size, so everything below it moves up by the height it
++	-- no longer takes (164 * 0.7655 * (1 - 1/LeftZoom)).
++	Def.ActorFrame{
++		Name="LeftColumn",
++		InitCommand=function(self)
++			self:xy(SL_DEVICE.LeftGroupX, 34 - SL_DEVICE.LeftZoom * 33):zoom(SL_DEVICE.LeftZoom)
++		end,
++		Def.ActorFrame{
++			InitCommand=function(self) self:y(-164 * 0.7655 * (1 - 1/SL_DEVICE.LeftZoom)) end,
+ 
+-	-- elements we need two of (one for each player) that draw underneath the StepsDisplayList
+-	-- this includes the stepartist boxes, the density graph, and the cursors.
+-	LoadActor("./PerPlayer/default.lua"),
+-	-- The grid for the difficulty picker (normal) or CourseContentsList (CourseMode)
+-	LoadActor("./StepsDisplayList/default.lua"),
++			-- number of steps, jumps, holds, etc., and high scores associated with the current stepchart
++			LoadActor("./PaneDisplay.lua"),
+ 
+-	-- Song's Musical Artist, BPM, Duration
+-	LoadActor("./SongDescription/SongDescription.lua"),
+-	-- Banner Art
+-	LoadActor("./Banner.lua"),
++			-- elements we need two of (one for each player) that draw underneath the StepsDisplayList
++			-- this includes the stepartist boxes, the density graph, and the cursors.
++			LoadActor("./PerPlayer/default.lua"),
++			-- The grid for the difficulty picker (normal) or CourseContentsList (CourseMode)
++			LoadActor("./StepsDisplayList/default.lua"),
++
++			-- Song's Musical Artist, BPM, Duration
++			LoadActor("./SongDescription/SongDescription.lua"),
++		},
++		-- Banner Art
++		LoadActor("./Banner.lua"),
++	},
+ 
+ 	-- ---------------------------------------------------
+ 	-- finally, load the overlay used for sorting the MusicWheel (and more), hidden by default
+diff --git a/BGAnimations/ScreenSelectPlayMode underlay/default.lua b/BGAnimations/ScreenSelectPlayMode underlay/default.lua
+index 432bd71..204c069 100755
+--- a/BGAnimations/ScreenSelectPlayMode underlay/default.lua	
++++ b/BGAnimations/ScreenSelectPlayMode underlay/default.lua	
+@@ -8,7 +8,9 @@ local cursor = {
+ 	h = 40,
+ 	index = 0,
+ 	-- the width of the cursor will be clamped to exist between these two values
+-	min_w = 90, max_w = 170,
++	-- device port: max 125 (was 170); enough for "MARATHON" at the icon's
++	-- 0.6 focus zoom, and keeps the block centerable on screen
++	min_w = 90, max_w = 125,
+ }
+ 
+ local Update = function(af, delta)
+@@ -50,9 +52,14 @@ end
+ 
+ local t = Def.ActorFrame{
+ 	InitCommand=function(self)
++		-- 1.3x the stock zoom(1.25).  Positioned so the whole block -- from the
++		-- widest cursor on the left (local x -150-125) to the panel's right edge
++		-- (local x 151) -- is centered on screen (~81px margins).
++		-- The IconChoice* positions in metrics.ini and the icon's basezoom
++		-- in "Graphics/ScreenSelectPlayMode Icon.lua" are scaled to match.
+ 		self:SetUpdateFunction( Update )
+-			:xy(_screen.cx+90, _screen.cy)
+-			:zoom(1.25)
++			:xy(_screen.cx+101, _screen.cy)
++			:zoom(1.625)
+ 	end,
+ 	OnCommand=function(self)
+ 		-- Get the Topscreen and its name, now that that TopScreen itself actually exists
+diff --git a/BGAnimations/ScreenSelectProfile underlay/PlayerFrame.lua b/BGAnimations/ScreenSelectProfile underlay/PlayerFrame.lua
+index 7a6617a..42a2345 100644
+--- a/BGAnimations/ScreenSelectProfile underlay/PlayerFrame.lua	
++++ b/BGAnimations/ScreenSelectProfile underlay/PlayerFrame.lua	
+@@ -98,7 +98,31 @@ end
+ 
+ return Def.ActorFrame{
+ 	Name=ToEnumShortString(player) .. "Frame",
+-	InitCommand=function(self) self:xy(_screen.cx+(150*(player==PLAYER_1 and -1 or 1)), _screen.cy) end,
++	InitCommand=function(self)
++		self:xy(_screen.cx+(150*(player==PLAYER_1 and -1 or 1)), _screen.cy)
++		self:playcommand("Layout")
++	end,
++	-- With one (or no) joined player, center that player's frame at 1.5x and
++	-- hide the other side's empty "Press START to join" frame; with 2
++	-- joined, use the stock side-by-side layout.  basezoom is used so this
++	-- doesn't fight the zoom() tweens in the Joined/Off commands.
++	LayoutCommand=function(self)
++		local humans = GAMESTATE:GetHumanPlayers()
++		-- with nobody joined (e.g. after backing out with Select), show P1's
++		-- "Press START to join" frame the same way -- this device only has
++		-- controls mapped for P1
++		local centered = humans[1] or PLAYER_1
++		if #humans <= 1 then
++			if centered == player then
++				self:visible(true):x(_screen.cx):basezoom(1.5)
++			else
++				self:visible(false)
++			end
++		else
++			self:visible(true):x(_screen.cx+(150*(player==PLAYER_1 and -1 or 1))):basezoom(1)
++		end
++	end,
++	PlayerUnjoinedMessageCommand=function(self) self:playcommand("Layout") end,
+ 
+ 	OffCommand=function(self)
+ 		if GAMESTATE:IsSideJoined(player) then
+@@ -111,6 +135,7 @@ return Def.ActorFrame{
+ 		end
+ 	end,
+ 	PlayerJoinedMessageCommand=function(self,param)
++		self:playcommand("Layout")
+ 		if param.Player == player then
+ 			self:zoom(1.15):bounceend(0.175):zoom(1)
+ 		end
+@@ -368,6 +393,17 @@ return Def.ActorFrame{
+ 					SetCommand=function(self, params)
+ 						if params then
+ 							self:visible(true):settext(params.mods or "")
++							-- device port: instead of letting the mask cut the last line in
++							-- half at the frame's bottom edge, drop whole words until the
++							-- text fits (~60px from here to the bottom edge) and end in "..."
++							local max_h = 58
++							if self:GetZoomedHeight() > max_h then
++								local words = split(" ", params.mods or "")
++								while #words > 0 and self:GetZoomedHeight() > max_h do
++									table.remove(words)
++									self:settext(table.concat(words, " ") .. "...")
++								end
++							end
+ 						else
+ 							self:visible(false):settext("")
+ 						end
+diff --git a/BGAnimations/ScreenSystemLayer overlay.lua b/BGAnimations/ScreenSystemLayer overlay.lua
+index ae3a40d..37488a7 100644
+--- a/BGAnimations/ScreenSystemLayer overlay.lua	
++++ b/BGAnimations/ScreenSystemLayer overlay.lua	
+@@ -28,6 +28,12 @@ local function CreditsText( player )
+ 			if SL[pn].GrooveStatsUsername ~= "" then
+ 				str = SL[pn].GrooveStatsUsername
+ 			end
++			-- hide the per-player "PRESS START" / "NOT PRESENT" prompts; profile
++			-- names etc. still show
++			if str == THEME:GetString("ScreenSystemLayer", "CreditsPressStart")
++			or str == THEME:GetString("ScreenSystemLayer", "CreditsNotPresent") then
++				str = ""
++			end
+ 
+ 			self:settext(str)
+ 		end,
+@@ -152,6 +158,9 @@ t[#t+1] = LoadFont("Common Footer")..{
+ 
+ 		if PREFSMAN:GetPreference("EventMode") then
+ 			self:settext( THEME:GetString("ScreenSystemLayer", "EventMode") )
++			-- only show the "Event Mode" indicator on the song select screens
++			local name = screen and screen:GetName() or ""
++			self:visible( name == "ScreenSelectMusic" or name == "ScreenSelectMusicCasual" )
+ 
+ 		elseif GAMESTATE:GetCoinMode() == "CoinMode_Pay" then
+ 			local credits = GetCredits()
+diff --git a/BGAnimations/ScreenTextEntry underlay.lua b/BGAnimations/ScreenTextEntry underlay.lua
+index 54b802d..994a27d 100755
+--- a/BGAnimations/ScreenTextEntry underlay.lua	
++++ b/BGAnimations/ScreenTextEntry underlay.lua	
+@@ -1,29 +1,54 @@
+ local af = Def.ActorFrame{}
+ 
+--- darken the entire screen slightly
++-- darken the entire screen
+ af[#af+1] = Def.Quad{
+ 	InitCommand=function(self) self:FullScreen():diffuse(0,0,0,0) end,
+-	OnCommand=function(self) self:accelerate(0.5):diffusealpha(0.5) end,
++	OnCommand=function(self) self:accelerate(0.5):diffusealpha(0.75) end,
+ 	OffCommand=function(self) self:accelerate(0.5):diffusealpha(0) end
+ }
+ 
++-- Positions match QuestionY/AnswerY/RowStartY/RowEndY in metrics.ini
++-- [ScreenTextEntry].
++
+ -- Intructions BG
+ af[#af+1] = Def.Quad {
+-	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-40):zoomto(_screen.w*0.75, _screen.h*0.25):diffuse(GetCurrentColor()) end
++	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-162):zoomto(_screen.w*0.75, 56):diffuse(GetCurrentColor()) end
+ }
+ -- white border
+-af[#af+1] = Border(_screen.w*0.75, _screen.cy*0.5, 2) .. {
+-	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-40) end
++af[#af+1] = Border(_screen.w*0.75, 56, 2) .. {
++	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-162) end
+ }
+ 
+ 
+ -- Text Entry BG
+ af[#af+1] = Def.Quad {
+-	InitCommand=function(self) self:xy(_screen.cx, _screen.cy+16):zoomto(_screen.w*0.75, 40):diffuse(0,0,0,1) end
++	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-102):zoomto(_screen.w*0.75, 40):diffuse(0,0,0,1) end
+ }
+ -- white border
+ af[#af+1] = Border(_screen.w*0.75, 40, 2)..{
+-	InitCommand=function(self) self:xy(_screen.cx, _screen.cy+16) end
++	InitCommand=function(self) self:xy(_screen.cx, _screen.cy-102) end
++}
++
++-- Solid backdrop behind the on-screen keyboard (ScreenTextEntryVisual), sized
++-- from the same RowStartX/RowEndX/RowStartY/RowEndY metrics the C++ side uses
++-- to lay out the keys (see metrics.ini [ScreenTextEntry]), plus a margin.
++local kbLeft = SCREEN_LEFT+100
++local kbRight = SCREEN_RIGHT-100
++local kbTop = SCREEN_CENTER_Y-44
++local kbBottom = SCREEN_BOTTOM-50
++local kbMarginX = 40
++local kbMarginY = 20
++local kbCenterX = (kbLeft+kbRight)/2
++local kbCenterY = (kbTop+kbBottom)/2
++local kbWidth = (kbRight-kbLeft)+kbMarginX*2
++local kbHeight = (kbBottom-kbTop)+kbMarginY*2
++
++af[#af+1] = Def.Quad {
++	InitCommand=function(self) self:xy(kbCenterX, kbCenterY):zoomto(kbWidth, kbHeight):diffuse(0,0,0,0.9) end
++}
++-- white border
++af[#af+1] = Border(kbWidth, kbHeight, 2) .. {
++	InitCommand=function(self) self:xy(kbCenterX, kbCenterY) end
+ }
+ 
+-return af
+\ No newline at end of file
++return af
+diff --git a/BGAnimations/ScreenTitleMenu underlay/UserContentText.lua b/BGAnimations/ScreenTitleMenu underlay/UserContentText.lua
+index 86bd2ed..111eba6 100644
+--- a/BGAnimations/ScreenTitleMenu underlay/UserContentText.lua	
++++ b/BGAnimations/ScreenTitleMenu underlay/UserContentText.lua	
+@@ -87,7 +87,13 @@ end
+ return LoadFont("Common Normal")..{
+ 	Text=GetText(),
+ 	InitCommand=function(self)
+-		self:zoom(0.8):y(-150):diffusealpha(0)
++		-- zoom(0.8) on this device's low internal render resolution (720x405)
++		-- shrinks "Common Normal" enough that gl4es's bilinear-only texture
++		-- minification (no mipmaps/anisotropic filtering) turns the thin
++		-- strokes into a moire/interference pattern -- confirmed via a real
++		-- on-device photo. Rendering closer to the font's native size avoids
++		-- the minification entirely.
++		self:zoom(1):y(-150):diffusealpha(0)
+ 		self:playcommand("UpdateColor")
+ 	end,
+ 	OnCommand=function(self) self:sleep(0.2):linear(0.4):diffusealpha(1) end,
+diff --git a/BGAnimations/ScreenTitleMenu underlay/default.lua b/BGAnimations/ScreenTitleMenu underlay/default.lua
+index cfbfcd0..bbce95b 100644
+--- a/BGAnimations/ScreenTitleMenu underlay/default.lua	
++++ b/BGAnimations/ScreenTitleMenu underlay/default.lua	
+@@ -14,6 +14,25 @@ end
+ local af = Def.ActorFrame{}
+ af.InitCommand=function(self) self:Center() end
+ 
++-- device port: vertically center the logo + menu block.  The logo's height
++-- depends on the VisualStyle (165..207px), so measure the loaded logo sprite
++-- and move both the logo and the menu scroller accordingly.
++local menu_h   = 4 * 28.6 + 20 -- 5 items 28.6px apart (see ScreenTitleMenu ScrollerTransform) + text height
++local menu_gap = 18
++af.OnCommand=function(self) self:queuecommand("DeviceLayout") end
++af.VisualStyleSelectedMessageCommand=function(self) self:queuecommand("DeviceLayout") end
++af.DeviceLayoutCommand=function(self)
++	local logo_af = self:GetChild("SLInfo"):GetChild("Logo")
++	local logo = logo_af and logo_af:GetChild("Simply Text")
++	if not logo then return end
++	local h = logo:GetZoomedHeight()
++	local top = (_screen.h - (h + menu_gap + menu_h)) / 2
++	-- the logo sprite is top-aligned at logo:GetY() inside the Logo frame
++	logo_af:y(top - _screen.cy - logo:GetY())
++	local scroller = SCREENMAN:GetTopScreen() and SCREENMAN:GetTopScreen():GetChild("Scroller")
++	if scroller then scroller:y(top + h + menu_gap + 10) end
++end
++
+ 
+ -- IsSpooky() will be true during October if EasterEggs are enabled
+ -- this is the content found in ./Graphics/_VisualStyles/Spooky/ExtraSpooky
+@@ -33,13 +52,16 @@ af2.Name="SLInfo"
+ 
+ -- the big blocky Wendy text that says SIMPLY LOVE (or SIMPLY THONK, or SIMPLY DUCKS, etc.)
+ -- and the arrows graphic that appears between the two words
+-af2[#af2+1] = LoadActor("./Logo.lua")
++-- device port: positioned by af's DeviceLayoutCommand (vertically centered
++-- together with the menu)
++af2[#af2+1] = LoadActor("./Logo.lua")..{ Name="Logo", InitCommand=function(self) self:y(-68) end }
+ 
+ -- 3 lines of text:
+ --    theme_name   theme_version
+ --    stepmania_version
+ --    num_songs in num_groups, num_courses
+-af2[#af2+1] = LoadActor("./UserContentText.lua")
++-- (hidden on this device port)
++-- af2[#af2+1] = LoadActor("./UserContentText.lua")
+ 
+ -- "The chills, I have them down my spine."
+ if IsSpooky() then
+@@ -50,8 +72,8 @@ end
+ if HolidayCheer() then
+ 	af2[#af2+1] = Def.Sprite{
+ 		Texture=THEME:GetPathB("ScreenTitleMenu", "underlay/hat.png"),
+-		InitCommand=function(self) self:zoom(0.225):xy( 130, -self:GetHeight()/2 ):rotationz(15):queuecommand("Drop") end,
+-		DropCommand=function(self) self:decelerate(1.333):y(-110) end,
++		InitCommand=function(self) self:zoom(0.225):xy( 130, -self:GetHeight()/2 - 68 ):rotationz(15):queuecommand("Drop") end,
++		DropCommand=function(self) self:decelerate(1.333):y(-178) end,
+ 	}
+ end
+ 
+diff --git a/Graphics/MusicWheel highlight.lua b/Graphics/MusicWheel highlight.lua
+index c6e85e8..01eec59 100755
+--- a/Graphics/MusicWheel highlight.lua	
++++ b/Graphics/MusicWheel highlight.lua	
+@@ -3,6 +3,6 @@ local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
+ -- one MusicWheelItem will be offsceen above, one will be offscreen below
+ local num_visible_items = num_items - 2
+ 
+-local item_width = _screen.w / 2.125
++local item_width = SL_DEVICE.WheelItemWidth -- device port (was _screen.w / 2.125)
+ 
+ return Def.Quad{ InitCommand=function(self) self:horizalign(left):x(WideScale(28,33)):zoomto(item_width,_screen.h/num_visible_items-1) end }
+\ No newline at end of file
+diff --git a/Graphics/MusicWheelItem Course NormalPart.lua b/Graphics/MusicWheelItem Course NormalPart.lua
+index 68924ed..4165794 100755
+--- a/Graphics/MusicWheelItem Course NormalPart.lua	
++++ b/Graphics/MusicWheelItem Course NormalPart.lua	
+@@ -3,7 +3,7 @@ local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
+ -- one MusicWheelItem will be offsceen above, one will be offscreen below
+ local num_visible_items = num_items - 2
+ 
+-local item_width = _screen.w / 2.125
++local item_width = SL_DEVICE.WheelItemWidth -- device port (was _screen.w / 2.125)
+ 
+ return Def.ActorFrame {
+     -- the MusicWheel is centered via metrics under [ScreenSelectMusic]; offset by a slight amount to the right here
+diff --git a/Graphics/MusicWheelItem SectionCollapsed NormalPart.lua b/Graphics/MusicWheelItem SectionCollapsed NormalPart.lua
+index c7cdf87..1d0b270 100755
+--- a/Graphics/MusicWheelItem SectionCollapsed NormalPart.lua	
++++ b/Graphics/MusicWheelItem SectionCollapsed NormalPart.lua	
+@@ -3,7 +3,7 @@ local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
+ -- one MusicWheelItem will be offsceen above, one will be offscreen below
+ local num_visible_items = num_items - 2
+ 
+-local item_width = _screen.w / 2.125
++local item_width = SL_DEVICE.WheelItemWidth -- device port (was _screen.w / 2.125)
+ 
+ return Def.ActorFrame{
+ 	-- the MusicWheel is centered via metrics under [ScreenSelectMusic]; offset by a slight amount to the right here
+diff --git a/Graphics/MusicWheelItem SectionExpanded NormalPart.lua b/Graphics/MusicWheelItem SectionExpanded NormalPart.lua
+index f6d67d1..de935a5 100755
+--- a/Graphics/MusicWheelItem SectionExpanded NormalPart.lua	
++++ b/Graphics/MusicWheelItem SectionExpanded NormalPart.lua	
+@@ -3,7 +3,7 @@ local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
+ -- one MusicWheelItem will be offsceen above, one will be offscreen below
+ local num_visible_items = num_items - 2
+ 
+-local item_width = _screen.w / 2.125
++local item_width = SL_DEVICE.WheelItemWidth -- device port (was _screen.w / 2.125)
+ 
+ return Def.ActorFrame{
+ 	-- the MusicWheel is centered via metrics under [ScreenSelectMusic]; offset by a slight amount to the right here
+diff --git a/Graphics/MusicWheelItem Song NormalPart/default.lua b/Graphics/MusicWheelItem Song NormalPart/default.lua
+index 43401e3..5d8012d 100644
+--- a/Graphics/MusicWheelItem Song NormalPart/default.lua	
++++ b/Graphics/MusicWheelItem Song NormalPart/default.lua	
+@@ -10,7 +10,7 @@ af[#af+1] = Def.Sprite{
+ 	Texture=THEME:GetPathG("", "Has Edit (doubleres).png"),
+ 	InitCommand=function(self)
+ 		self:horizalign(left):visible(false):zoom(0.375)
+-		self:x( _screen.w/(WideScale(2.15, 2.14)) - self:GetWidth()*self:GetZoom() - 8 )
++		self:x( (SL_DEVICE.WheelItemRight - 36) - self:GetWidth()*self:GetZoom() - 8 )
+ 
+ 		if DarkUI() then self:diffuse(0,0,0,1) end
+ 	end,
+@@ -31,7 +31,7 @@ for player in ivalues(PlayerNumber) do
+ 		InitCommand=function(self)
+ 			self:visible(false)
+ 			self:zoom(0.2)
+-			self:x( _screen.w/(WideScale(2.15, 2.14)) - self:GetWidth()*self:GetZoom() - 40 )
++			self:x( (SL_DEVICE.WheelItemRight - 36) - self:GetWidth()*self:GetZoom() - 40 )
+ 			self:diffuse(SL.JudgmentColors["ITG"][1])
+ 		end,
+ 		PlayerJoinedMessageCommand=function(self)
+diff --git a/Graphics/OptionRow Frame.lua b/Graphics/OptionRow Frame.lua
+index 70f5c36..51b6a2f 100644
+--- a/Graphics/OptionRow Frame.lua	
++++ b/Graphics/OptionRow Frame.lua	
+@@ -2,11 +2,11 @@
+ local padding = WideScale(12, 28)
+ 
+ -- OptionRow height and width
+-local row_height = 30
++local row_height = 42 -- device port: was 30 (larger option text)
+ local row_width  = WideScale(582, 776) - (padding * 2)
+ 
+ -- width of OptionRow area to the left that contains the row title
+-local title_bg_width = 115
++local title_bg_width = 200 -- device port: was 115
+ 
+ local proxy_offset = _screen.cx - WideScale(30,40)
+ 
+diff --git a/Graphics/OptionRowExit Frame.lua b/Graphics/OptionRowExit Frame.lua
+index d390e33..8c2521a 100644
+--- a/Graphics/OptionRowExit Frame.lua	
++++ b/Graphics/OptionRowExit Frame.lua	
+@@ -1,5 +1,5 @@
+ local padding    = WideScale(12, 28)
+-local row_height = 30
++local row_height = 42 -- device port: was 30 (larger option text)
+ local row_width  = WideScale(582, 776) - (padding * 2)
+ 
+ return Def.Quad {
+diff --git a/Graphics/OptionRowServiceChild Frame.lua b/Graphics/OptionRowServiceChild Frame.lua
+index 867692b..5911c1f 100644
+--- a/Graphics/OptionRowServiceChild Frame.lua	
++++ b/Graphics/OptionRowServiceChild Frame.lua	
+@@ -1,5 +1,5 @@
+-local title_bg_width = SL_WideScale(115, 128)
+-local row_height = 30
++local title_bg_width = SL_WideScale(115, 200) -- device port: was 128
++local row_height = 42 -- device port: was 30 (larger option text)
+ local row_width = {
+ 	active   = WideScale(304, 460),
+ 	inactive = WideScale(300, 456)
+diff --git a/Graphics/OptionRowSimpleExit Frame.lua b/Graphics/OptionRowSimpleExit Frame.lua
+index 524085d..80d085d 100755
+--- a/Graphics/OptionRowSimpleExit Frame.lua	
++++ b/Graphics/OptionRowSimpleExit Frame.lua	
+@@ -1,4 +1,4 @@
+-local row_height = 30
++local row_height = 42 -- device port: was 30 (larger option text)
+ local row_width  = WideScale(300, 456)
+ 
+ return Def.Quad {
+diff --git a/Graphics/OptionRowSimpleService Frame.lua b/Graphics/OptionRowSimpleService Frame.lua
+index 171fa69..b20ead5 100644
+--- a/Graphics/OptionRowSimpleService Frame.lua	
++++ b/Graphics/OptionRowSimpleService Frame.lua	
+@@ -1,4 +1,4 @@
+-local row_height = 30
++local row_height = 42 -- device port: was 30 (larger option text)
+ local row_width = {
+ 	active   = WideScale(304, 460),
+ 	inactive = WideScale(300, 456)
+diff --git a/Graphics/OptionsCursor Left.lua b/Graphics/OptionsCursor Left.lua
+index 6180c8f..d27f7a2 100755
+--- a/Graphics/OptionsCursor Left.lua	
++++ b/Graphics/OptionsCursor Left.lua	
+@@ -18,12 +18,12 @@ end
+ 
+ return Def.Quad {
+ 	Name="CursorLeft",
+-	InitCommand=function(self) self:zoomto(2,26) end,
++	InitCommand=function(self) self:zoomto(2,38) end,
+ 	OptionRowChangedMessageCommand=function(self, params)
+ 	if PlayerOnStepChartOptRow(player) then
+-			self:y(player==PLAYER_1 and 1 or 3):zoomto(2,30)
++			self:y(player==PLAYER_1 and 1 or 3):zoomto(2,42)
+ 		else
+-			self:y(player==PLAYER_1 and -1 or 1):zoomto(2,26)
++			self:y(player==PLAYER_1 and -1 or 1):zoomto(2,38)
+ 		 end
+ 	end
+ }
+diff --git a/Graphics/OptionsCursor Middle.lua b/Graphics/OptionsCursor Middle.lua
+index 7a7b506..cee0633 100755
+--- a/Graphics/OptionsCursor Middle.lua	
++++ b/Graphics/OptionsCursor Middle.lua	
+@@ -19,11 +19,11 @@ end
+ return Def.ActorFrame {
+ 	Def.Quad {
+ 		Name="CursorTop",
+-		InitCommand=function(self) self:zoomto(1,2):y(-12) end,
++		InitCommand=function(self) self:zoomto(1,2):y(-18) end,
+ 	},
+ 	Def.Quad {
+ 		Name="CursorBottom",
+-		InitCommand=function(self) self:zoomto(1,2):y(12) end,
++		InitCommand=function(self) self:zoomto(1,2):y(18) end,
+ 		OptionRowChangedMessageCommand=function(self)
+ 			if PlayerOnStepChartOptRow(player) then
+ 				-- self:y(player==PLAYER_1 and 16 or 14)
+diff --git a/Graphics/OptionsCursor Right.lua b/Graphics/OptionsCursor Right.lua
+index aa3718e..d220e5a 100755
+--- a/Graphics/OptionsCursor Right.lua	
++++ b/Graphics/OptionsCursor Right.lua	
+@@ -18,12 +18,12 @@ end
+ 
+ return Def.Quad {
+ 	Name="CursorRight",
+-	InitCommand=function(self) self:zoomto(2,26) end,
++	InitCommand=function(self) self:zoomto(2,38) end,
+ 	OptionRowChangedMessageCommand=function(self, params)
+ 		if PlayerOnStepChartOptRow(player) then
+-			self:y(player==PLAYER_1 and 1 or 3):zoomto(2,30)
++			self:y(player==PLAYER_1 and 1 or 3):zoomto(2,42)
+ 		else
+-			self:y(player==PLAYER_1 and -1 or 1):zoomto(2,26)
++			self:y(player==PLAYER_1 and -1 or 1):zoomto(2,38)
+ 		end
+ 	end
+ }
+\ No newline at end of file
+diff --git a/Graphics/ScreenSelectPlayMode Icon.lua b/Graphics/ScreenSelectPlayMode Icon.lua
+index e398abb..46e012e 100755
+--- a/Graphics/ScreenSelectPlayMode Icon.lua	
++++ b/Graphics/ScreenSelectPlayMode Icon.lua	
+@@ -7,8 +7,8 @@ return LoadFont("Common Bold")..{
+ 	Name="ModeName"..index,
+ 	Text=ScreenString(text),
+ 
+-	InitCommand=function(self) self:halign(1):maxwidth(256) end,
+-	GainFocusCommand=function(self) self:stoptweening():linear(0.1):zoom(0.75):diffuse(PlayerColor(PLAYER_1)) end,
++	InitCommand=function(self) self:halign(1):maxwidth(256):basezoom(1.3) end,
++	GainFocusCommand=function(self) self:stoptweening():linear(0.1):zoom(0.6):diffuse(PlayerColor(PLAYER_1)) end,
+ 	LoseFocusCommand=function(self) self:stoptweening():linear(0.1):zoom(0.3):diffuse(color("#888888")) end,
+ 	OffCommand=function(self) self:linear(0.2):diffusealpha(0) end
+ }
+\ No newline at end of file
+diff --git a/Graphics/ScreenTitleMenu scroll.lua b/Graphics/ScreenTitleMenu scroll.lua
+index f67ea70..3a9b213 100755
+--- a/Graphics/ScreenTitleMenu scroll.lua	
++++ b/Graphics/ScreenTitleMenu scroll.lua	
+@@ -8,7 +8,7 @@ t[#t+1] = LoadFont("Common Bold")..{
+ 	Name="Choice"..index,
+ 	Text=THEME:GetString( 'ScreenTitleMenu', Var("GameCommand"):GetText() ),
+ 
+-	InitCommand=function(self) self:shadowlength(0.5) end,
++	InitCommand=function(self) self:shadowlength(0.5):basezoom(1.3) end,
+ 	OnCommand=function(self) self:diffusealpha(0):sleep(index*0.075):linear(0.2):diffusealpha(1) end,
+ 	OffCommand=function(self)
+ 		-- if the first TitleMenu choice (Gameplay) was chosen by the player
+diff --git a/Languages/en.ini b/Languages/en.ini
+index 6c1b584..978a608 100644
+--- a/Languages/en.ini
++++ b/Languages/en.ini
+@@ -30,8 +30,9 @@ Bottom=to save scores and preferences.
+ ##############################################
+ # TitleMenu appears in Home mode
+ [ScreenTitleMenu]
+-Dance Mode=Gameplay
++Dance Mode=Play
+ Edit Mode=Edit Mode
++Profiles=Profiles
+ Enter Unlock Code=Enter Unlock Code
+ 
+ # stats for TitleMenu/TitleJoin like "249 songs in 13 groups, 6 courses"
+@@ -848,6 +849,10 @@ HideLightType=Hide Light Type
+ # ScreenPlayerOptions3
+ RemoveA=Remove
+ RemoveB=Remove
++InsertA=Insert
++InsertB=Insert
++EffectA=Effect
++EffectB=Effect
+ Holds=Notes → Holds
+ ScreenAfterPlayerOptions3=What comes next?
+ 
+@@ -1064,6 +1069,10 @@ Persp=Change the notefield perspective.
+ Remove=Remove notes [m].
+ RemoveA=Remove notes [m].
+ RemoveB=Remove notes [m].
++InsertA=Insert more notes. [m]
++InsertB=Insert more notes. [m]
++EffectA=Various arrow effects. [m]
++EffectB=Various arrow effects. [m]
+ DataVisualizations=Show the pacemaker graph or step statistics\non the side of the playfield.
+ TargetScore=Choose the Target Score for your pacemaker.
+ ActionOnMissedTarget=Choose the action that should be performed when your Target Score is no longer achievable.
+@@ -1258,13 +1267,14 @@ Surround=Surround
+ Vertical=Vertical
+ 
+ # ScreenAfterPlayerOptions
++# (device port: shortened so the row fits at the larger option font size)
+ Gameplay=Gameplay
+-Select Music=Choose a Different Song
++Select Music=Change Song
+ 
+ # tacking on additional Options screens is neither good UI nor sustainable :(
+-Options1=Main Modifiers
+-Options2=Advanced Modifiers
+-Options3=Uncommon Modifiers
++Options1=Main
++Options2=Advanced
++Options3=Uncommon
+ 
+ 
+ ##############################################
+diff --git a/Scripts/SL-DeviceLayout.lua b/Scripts/SL-DeviceLayout.lua
+new file mode 100644
+index 0000000..46ebef8
+--- /dev/null
++++ b/Scripts/SL-DeviceLayout.lua
+@@ -0,0 +1,43 @@
++-- Device port layout constants for ScreenSelectMusic (handheld, 16:9 theme
++-- space of ~854x480).  The left column (banner, song info, density graph,
++-- difficulty grid, pane) is scaled by LeftZoom; the MusicWheel fills the rest
++-- of the screen at WheelZoom with its items narrowed to WheelItemWidth so the
++-- zoomed wheel ends exactly at the right edge.
++SL_DEVICE = {
++	LeftZoom = 1.3,
++	-- local x-range of the left column's content (banner/description/graph/grid)
++	LeftMinX = _screen.cx - 330,
++	LeftMaxX = _screen.cx - 10,
++	LeftScreenX = 6,
++	WheelZoom = 1.5,
++	-- room right of the difficulty grid for the mirrored difficulty cursor
++	WheelGap = 32,
++	-- song title x inside a MusicWheelItem (stock 111; grade lamp sits at ~50)
++	WheelTitleX = 80,
++}
++local d = SL_DEVICE
++d.LeftGroupX = d.LeftScreenX - d.LeftZoom * d.LeftMinX
++d.WheelLeft = d.LeftGroupX + d.LeftZoom * d.LeftMaxX + d.WheelGap
++-- MusicWheelItems start 33px right of the wheel's origin (WideScale(28,33))
++d.WheelX = d.WheelLeft - d.WheelZoom * 33
++d.WheelItemWidth = (_screen.w - d.WheelX) / d.WheelZoom - 33
++d.WheelItemRight = 33 + d.WheelItemWidth
++
++-- ScreenGameplay Step Statistics pane (single player, centered notefield):
++-- StepStatistics/default.lua fills SL_DEVICE.StepStats with the pane's origin
++-- and the BannerAndData zoom; pieces use these helpers to place themselves at
++-- absolute screen positions instead of the stock right-side column.
++SL_DEVICE.StepStats = { active = false, x = 0, y = 0, zoom = 1 }
++-- vertical center shared by the left (banner + density graph) and right
++-- (judgments + holds/mines/rolls) columns: middle of the free area between
++-- the header (~80) and the profile name at the bottom (~455)
++SL_DEVICE.GameplayCenterY = 267
++-- left column block: banner (106) + gap (20) + Peak NPS label (18) + graph (70)
++SL_DEVICE.GameplayLeftTop = SL_DEVICE.GameplayCenterY - 107
++-- right column block's stock vertical center is ~218.5
++SL_DEVICE.GameplayRightShift = SL_DEVICE.GameplayCenterY - 218.5
++-- screen point -> local point inside the (zoomed) BannerAndData frame
++SL_DEVICE.SSLocal = function(sx, sy)
++	local s = SL_DEVICE.StepStats
++	return (sx - s.x) / s.zoom, (sy - s.y) / s.zoom
++end
+diff --git a/metrics.ini b/metrics.ini
+index 2dbe13e..07fee85 100644
+--- a/metrics.ini
++++ b/metrics.ini
+@@ -100,16 +100,20 @@ PrevScreen="ScreenInit"
+ IdleTimeoutSeconds=30
+ IdleTimeoutScreen="ScreenInit"
+ 
+-ChoiceNames="1,2,3,4"
++ChoiceNames="1,2,3,4,5"
+ DefaultChoice="1"
+ Choice1="applydefaultoptions;screen,"..Branch.AllowScreenSelectProfile()..";text,Dance Mode"
+-Choice2="screen,ScreenEditMenu;text,Edit Mode"
+-Choice3="screen,ScreenOptionsService;text,Options"
+-Choice4="screen,ScreenExit;text,Exit"
++Choice2="screen,ScreenOptionsService;text,Options"
++Choice3="screen,ScreenOptionsManageProfiles;text,Profiles"
++Choice4="screen,ScreenEditMenu;text,Edit Mode"
++Choice5="screen,ScreenExit;text,Exit"
+ 
+ ScrollerX=_screen.cx
+-ScrollerY=_screen.cy+_screen.h/3.8
+-ScrollerTransform=function(self,offset,itemIndex,numItems) self:y(22*offset) end
++# menu items scaled 1.3x (basezoom in "Graphics/ScreenTitleMenu scroll.lua"),
++# spacing scaled to match; moved up 82px total (14 to keep the last item on
++# screen + 68 to vertically center the logo + menu block, see underlay)
++ScrollerY=_screen.cy+_screen.h/3.8-82
++ScrollerTransform=function(self,offset,itemIndex,numItems) self:y(28.6*offset) end
+ 
+ HeaderOnCommand=visible,false
+ FooterOnCommand=visible,false
+@@ -183,11 +187,11 @@ SharedSelection=true
+ 
+ UseIconMetrics=true
+ 
+-IconChoiceCasualX=_screen.cx - 110
+-IconChoiceCasualY=_screen.cy - 75
++IconChoiceCasualX=_screen.cx - 159
++IconChoiceCasualY=_screen.cy - 97.5
+ 
+-IconChoiceITGX=_screen.cx - 110
+-IconChoiceITGY=_screen.cy - 25
++IconChoiceITGX=_screen.cx - 159
++IconChoiceITGY=_screen.cy - 32.5
+ 
+ # there is not a 4th choice for now, so these are commented out
+ # IconChoice_unused=_screen.cx - 110
+@@ -203,11 +207,11 @@ ChoiceMarathon="playmode,Nonstop; name,Marathon; screen,ScreenProfileLoad"
+ # ChoiceEndless="playmode,Endless; name,Endless; screen,ScreenProfileLoad"
+ # ChoiceOni="playmode,Oni; name,Oni; screen,ScreenProfileLoad"
+ 
+-IconChoiceRegularX=_screen.cx - 110
+-IconChoiceRegularY=_screen.cy - 75
++IconChoiceRegularX=_screen.cx - 159
++IconChoiceRegularY=_screen.cy - 97.5
+ 
+-IconChoiceMarathonX=_screen.cx - 110
+-IconChoiceMarathonY=_screen.cy - 25
++IconChoiceMarathonX=_screen.cx - 159
++IconChoiceMarathonY=_screen.cy - 32.5
+ 
+ # IconChoiceEndlessX=_screen.cx - 110
+ # IconChoiceEndlessY=_screen.cy + 25
+@@ -342,9 +346,18 @@ QuestionY=_screen.cy-60
+ QuestionOnCommand=_wrapwidthpixels,600
+ 
+ [ScreenTextEntry]
+-QuestionY=_screen.cy-64
++# Force the on-screen, D-Pad/button-navigable keyboard (ScreenTextEntryVisual)
++# instead of requiring a physical keyboard -- this device only has a gamepad.
++Class="ScreenTextEntryVisual"
++# Stacked top to bottom without overlaps on the 480px-tall screen: question
++# panel, answer box, then the keyboard rows filling the lower half (the
++# _fallback defaults put the question and the answer on top of the keys).
++# The boxes behind them are in BGAnimations/ScreenTextEntry underlay.lua.
++QuestionY=_screen.cy-162
+ QuestionOnCommand=_wrapwidthpixels,600
+-AnswerY=_screen.cy+16
++AnswerY=_screen.cy-102
++RowStartY=_screen.cy-44
++RowEndY=SCREEN_BOTTOM-50
+ 
+ ## Options Section #############################################################
+ 
+@@ -390,12 +403,20 @@ RightY=1
+ 
+ [OptionsUnderlineP1]
+ Fallback="OptionsUnderline"
++# device port: lower underline for the larger option text (item zoom 0.75 ->
++# 1.25; _fallback puts it at y 10 for P1 / 12 for P2)
++LeftY=17
++MiddleY=17
++RightY=17
+ LeftOnCommand=diffuse,PlayerColor(PLAYER_1,true)
+ MiddleOnCommand=diffuse,PlayerColor(PLAYER_1,true)
+ RightOnCommand=diffuse,PlayerColor(PLAYER_1,true)
+ 
+ [OptionsUnderlineP2]
+ Fallback="OptionsUnderline"
++LeftY=19
++MiddleY=19
++RightY=19
+ LeftOnCommand=diffuse,PlayerColor(PLAYER_2,true)
+ MiddleOnCommand=diffuse,PlayerColor(PLAYER_2,true)
+ RightOnCommand=diffuse,PlayerColor(PLAYER_2,true)
+@@ -409,7 +430,7 @@ RightOnCommand=diffuse,PlayerColor(PLAYER_2,true)
+ ShowBpmInSpeedTitle=false
+ 
+ TitleX=WideScale(26,40)
+-TitleOnCommand=zoom,0.8;vertspacing,-8;horizalign,left;maxwidth,WideScale(128,120)
++TitleOnCommand=zoom,1.35;vertspacing,-8;horizalign,left;maxwidth,WideScale(128,137)
+ TitleGainFocusCommand=%function(self)\
+ 	self:diffuse(PlayerColor(PLAYER_1)) \
+ 	DiffuseEmojis(self) \
+@@ -423,8 +444,13 @@ FrameOnCommand=diffusealpha,DarkUI() and 1 or 0.8
+ FrameGainFocusCommand=diffuse,DarkUI() and color("#666666") or color("#333333"); diffusealpha,1
+ FrameLoseFocusCommand=diffuse,color("#071016");diffusealpha,DarkUI() and 1 or 0.8
+ 
+-ItemsStartX=WideScale(146,160)
+-ItemsEndX=_screen.w-225
++ItemsStartX=WideScale(146,235)
++# device port: options screens zoom their container 1.1x from the left edge, so
++# row coordinates are screen/1.1; end ~40px inside the row background
++ItemsEndX=_screen.w/1.1-40
++# rows that would need shrinking below 80% switch to one-choice-with-arrows
++# instead of becoming unreadably small
++ItemsMinBaseZoom=0.8
+ 
+ # the x value of where to draw the single BitmapText item that
+ # will display when the OptionRow's layout is ShowOneInRow
+@@ -434,7 +460,7 @@ ItemsLongRowP2X=WideScale(_screen.cx+100,_screen.cx+100)
+ # pixels between each item when the OptionRow's layout is ShowAllInOneRow
+ ItemsGapX=14
+ 
+-ItemOnCommand=zoom,0.75;diffusealpha,1;vertspacing,-10
++ItemOnCommand=zoom,1.25;diffusealpha,1;vertspacing,-10
+ ItemGainFocusCommand=
+ ItemLoseFocusCommand=
+ 
+@@ -442,13 +468,14 @@ ItemLoseFocusCommand=
+ # where every row is guaranteed to start with a ▼ character
+ [OptionRowExtendedPlayerOptions]
+ Fallback="OptionRow"
+-ItemsStartX=WideScale(146,155)
++# device port: same title column as [OptionRow] (was 155) for the larger titles
++ItemsStartX=WideScale(146,235)
+ 
+ 
+ [OptionRowSimple]
+ Fallback="OptionRow"
+-TitleOnCommand=zoom,0.8;halign,0;vertspacing,-8;
+-ItemOnCommand=diffuse,DarkUI() and Color.White or Color.Black;zoom,0.8;vertspacing,-8;
++TitleOnCommand=zoom,1.35;halign,0;vertspacing,-8;
++ItemOnCommand=diffuse,DarkUI() and Color.White or Color.Black;zoom,1.3;vertspacing,-8;
+ FrameDisabledCommand=diffuse,color("#000000");
+ 
+ [OptionRowSimpleService]
+@@ -468,7 +495,7 @@ FrameOnCommand=diffusealpha,0.7
+ FrameGainFocusCommand=diffuse,color("#293238");diffusealpha,0.8
+ FrameLoseFocusCommand=diffuse,color("#071016");diffusealpha,0.8
+ TitleGainFocusCommand=diffuse,color("#000000")
+-ItemOnCommand=zoom,0.8;x,WideScale(210,285)
++ItemOnCommand=zoom,1.3;x,WideScale(210,285)
+ 
+ 
+ [OptionRowSimpleExit]
+@@ -504,8 +531,8 @@ FooterOnCommand=visible,false
+ Fallback="OptionRow"
+ TitleX=WideScale(20, 40)
+ FrameX=0
+-ItemsStartX=WideScale(140, 170)
+-ItemsEndX=WideScale(256, 400)
++ItemsStartX=WideScale(140, 235)
++ItemsEndX=WideScale(256, 440)
+ ItemsLongRowSharedX=WideScale(210,285)
+ # intentionally empty so it doesn't inherit from [OptionRow]
+ FrameOnCommand=
+@@ -560,6 +587,24 @@ Effect,8="mod,tipsy;name,Tipsy"
+ Effect,9="mod,bumpy;name,Bumpy"
+ Effect,10="mod,beat;name,Beat"
+ 
++# device port: Effect split in two rows so each fits on screen at the larger
++# option font size (the engine's squeeze-to-fit misplaces items; see OptionRow.cpp)
++EffectA="5;selectmultiple"
++EffectADefault="mod,no drunk,no dizzy,no confusion,no flip"
++EffectA,1="mod,drunk;name,Drunk"
++EffectA,2="mod,dizzy;name,Dizzy"
++EffectA,3="mod,confusion;name,Confusion"
++EffectA,4="mod,-100% mini;name,Big"
++EffectA,5="mod,flip;name,Flip"
++
++EffectB="5;selectmultiple"
++EffectBDefault="mod,no invert,no tornado,no tipsy,no bumpy,no beat"
++EffectB,1="mod,invert;name,Invert"
++EffectB,2="mod,tornado;name,Tornado"
++EffectB,3="mod,tipsy;name,Tipsy"
++EffectB,4="mod,bumpy;name,Bumpy"
++EffectB,5="mod,beat;name,Beat"
++
+ Appearance="5;selectmultiple"
+ AppearanceDefault="mod,no hidden,no sudden,no stealth,no blink,no randomvanish"
+ Appearance,1="mod,hidden;name,Hidden"
+@@ -601,6 +646,21 @@ Insert,6="mod,echo;name,Echo"
+ Insert,7="mod,stomp;name,Stomp"
+ Insert,8="mod,mines;name,Mines"
+ 
++# device port: Insert split in two rows (same reason as EffectA/EffectB)
++InsertA="4;selectmultiple"
++InsertADefault="mod,no wide,no big,no quick,no bmrize"
++InsertA,1="mod,wide;name,Wide"
++InsertA,2="mod,big;name,Big"
++InsertA,3="mod,quick;name,Quick"
++InsertA,4="mod,bmrize;name,BMRize"
++
++InsertB="4;selectmultiple"
++InsertBDefault="mod,no skippy,no echo,no stomp,no mines"
++InsertB,1="mod,skippy;name,Skippy"
++InsertB,2="mod,echo;name,Echo"
++InsertB,3="mod,stomp;name,Stomp"
++InsertB,4="mod,mines;name,Mines"
++
+ Remove="8;selectmultiple"
+ RemoveDefault="mod,no little,no nomines,no noholds,no nojumps,no nohands,no noquads,no nolifts,no nofakes"
+ Remove,1="mod,little;name,Little"
+@@ -659,7 +719,11 @@ FooterOnCommand=visible,false
+ ShowCreditDisplay=false
+ 
+ OptionRowExitMetricsGroup="OptionRowExit"
+-RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-170) + (_screen.h*0.065*positionIndex) ); end
++RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-152) + (45*positionIndex) ); end
++# device port: larger option rows (42px, 45px apart; the options container is
++# zoomed 1.1, so ~49.5px on screen) -> 7 rows visible, spanning screen y ~73..417
++# between the speed mod readout at the top and the explanation at the bottom
++NumRowsShown=7
+ 
+ RepeatRate=30
+ AllowRepeatingChangeValueInput=true
+@@ -732,13 +796,13 @@ Line12="list,Effect"
+ Line13="list,Appearance"
+ 
+ ExplanationP1X=WideScale(26,39)
+-ExplanationP1Y=SCREEN_BOTTOM-95.5
+-ExplanationP1OnCommand=zoom,WideScale(0.7,0.75);diffuse,PlayerColor(PLAYER_1);_wrapwidthpixels,_screen.w*WideScale(0.59,0.5);horizalign,left;vertspacing,-7;cropright,1;linear,0.5;cropright,0
++ExplanationP1Y=SCREEN_BOTTOM-63.5
++ExplanationP1OnCommand=zoom,WideScale(0.7,1.1);diffuse,PlayerColor(PLAYER_1);_wrapwidthpixels,_screen.w*WideScale(0.59,0.5);horizalign,left;vertspacing,-7;cropright,1;linear,0.5;cropright,0
+ ExplanationP1OffCommand=linear,0.2;diffusealpha,0
+ 
+ ExplanationP2X=_screen.cx+WideScale(-22,0)
+-ExplanationP2Y=SCREEN_BOTTOM-95.5
+-ExplanationP2OnCommand=zoom,WideScale(0.7,0.75);diffuse,PlayerColor(PLAYER_2);_wrapwidthpixels,_screen.w*WideScale(0.59,0.5);horizalign,left;vertspacing,-7;cropright,1;linear,0.5;cropright,0
++ExplanationP2Y=SCREEN_BOTTOM-63.5
++ExplanationP2OnCommand=zoom,WideScale(0.7,1.1);diffuse,PlayerColor(PLAYER_2);_wrapwidthpixels,_screen.w*WideScale(0.59,0.5);horizalign,left;vertspacing,-7;cropright,1;linear,0.5;cropright,0
+ ExplanationP2OffCommand=linear,0.2;diffusealpha,0
+ 
+ 
+@@ -776,8 +840,7 @@ OptionRowNormalMetricsGroup="OptionRowExtendedPlayerOptions"
+ 
+ # remove Characters if no dancing character directories were found
+ LineNames=(function() \
+-	local lines = "Insert,Remove,Holds,11,12,13,Attacks,Characters,HideLightType,ScreenAfterPlayerOptions3" \
+-	if not IsUsingWideScreen() then lines = lines:gsub("Remove", "RemoveA,RemoveB") end \
++	local lines = "InsertA,InsertB,RemoveA,RemoveB,Holds,11,EffectA,EffectB,13,Attacks,Characters,HideLightType,ScreenAfterPlayerOptions3" \
+ 	if #CHARMAN:GetAllCharacters() < 1 then lines = lines:gsub("Characters,", "") end \
+ 	return lines \
+ end)()
+@@ -789,6 +852,10 @@ LineInsert="list,Insert"
+ LineRemove="list,Remove"
+ LineRemoveA="list,RemoveA"
+ LineRemoveB="list,RemoveB"
++LineInsertA="list,InsertA"
++LineInsertB="list,InsertB"
++LineEffectA="list,EffectA"
++LineEffectB="list,EffectB"
+ LineHolds="list,Holds"
+ LineAttacks="list,Attacks"
+ LineCharacters="list,Characters"
+@@ -830,8 +897,8 @@ ContainerOffCommand=accelerate,0.3;diffusealpha,0
+ RowInitCommand=diffusealpha,0;
+ RowOnCommand=linear,0.2;diffusealpha,1;draworder,-1
+ RowOffCommand=linear,0.2;diffusealpha,0
+-RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-180) + (32*positionIndex) ); end
+-NumRowsShown=10
++RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-180) + (45*positionIndex) ); end
++NumRowsShown=7
+ 
+ LineHighlightP1OnCommand=visible,false
+ LineHighlightP2OnCommand=visible,false
+@@ -880,7 +947,7 @@ DisqualifyP2OnCommand=zoom,0.25;horizalign,left;diffuse,PlayerColor(PLAYER_2)
+ 
+ 
+ [ScreenOptionsSimple]
+-RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-180) + (32*positionIndex) ); end
++RowPositionTransformFunction=function(self,positionIndex,itemIndex,numItems) self:y( (_screen.cy-180) + (45*positionIndex) ); end
+ StopMusicOnBack=false
+ SeparateExitRow=false
+ ExplanationTogetherX=_screen.cx-25
+@@ -910,7 +977,7 @@ FooterOnCommand=visible,false
+ # and redirect them to change their Visual Style or VideoRenderer, if needed.
+ HandleBackButton=false
+ 
+-NumRowsShown=10
++NumRowsShown=7
+ 
+ # remove ClearCredits if we're not in CoinMode_Pay; it doesn't make sense to show for at-home players
+ # note that (EventMode + CoinMode_Pay) will actually place you in CoinMode_Home
+@@ -918,7 +985,7 @@ NumRowsShown=10
+ # remove CustomSongs if the corresponding preferences don't exist in Preferences.ini
+ # CustomSongs wasn't added until 5.1 beta, but SL still supports 5.0.12 for now
+ LineNames=(function() \
+-   local lines = "SystemOptions,MapControllers,TestInput,InputOptions,GraphicsSoundOptions,VisualOptions,ArcadeOptions,Bookkeeping,AdvancedOptions,MenuTimerOptions,USBProfileOptions,OptionsManageProfiles,ThemeOptions,TournamentModeOptions,GrooveStatsOptions,StepManiaCredits,ClearCredits,Reload" \
++   local lines = "SystemOptions,MapControllers,TestInput,InputOptions,GraphicsSoundOptions,VisualOptions,ArcadeOptions,Bookkeeping,AdvancedOptions,MenuTimerOptions,USBProfileOptions,ThemeOptions,TournamentModeOptions,StepManiaCredits,ClearCredits,Reload" \
+    if GAMESTATE:GetCoinMode() ~= "CoinMode_Pay" then lines = lines:gsub("ClearCredits,", "") end \
+    if not PREFSMAN:PreferenceExists("CustomSongsEnable") then lines = lines:gsub("USBProfileOptions,", "") end \
+    return lines \
+@@ -934,13 +1001,11 @@ LineBookkeeping="gamecommand;screen,ScreenBookkeeping;name,Bookkeeping"
+ LineAdvancedOptions="gamecommand;screen,ScreenAdvancedOptions;name,AdvancedOptions"
+ LineMenuTimerOptions="gamecommand;screen,ScreenMenuTimerOptions;name,MenuTimerOptions"
+ LineUSBProfileOptions="gamecommand;screen,ScreenUSBProfileOptions;name,USBProfileOptions"
+-LineOptionsManageProfiles="gamecommand;screen,ScreenOptionsManageProfiles;name,Profiles"
+ LineAppearance="gamecommand;screen,ScreenAppearanceOptions;name,AppearanceOptions"
+ LineThemeOptions="gamecommand;screen,ScreenThemeOptions;name,ThemeOptions"
+ LineTournamentModeOptions="gamecommand;screen,ScreenTournamentModeOptions;name,TournamentModeOptions"
+ LineStepManiaCredits="gamecommand;screen,ScreenCredits;name,StepMania Credits"
+ LineClearCredits="gamecommand;clearcredits;name,Clear Credits"
+-LineGrooveStatsOptions="gamecommand;screen,ScreenGrooveStatsOptions;name,GrooveStatsOptions"
+ 
+ ExplanationTogetherOnCommand=visible,false
+ 
+@@ -1303,6 +1368,10 @@ FooterOnCommand=visible,false
+ 
+ 
+ [ScreenOptionsManageProfiles]
++# _fallback hardcodes PrevScreen/NextScreen to ScreenOptionsService (the Operator
++# menu); override here since this screen is now launched from the Title Menu.
++PrevScreen="ScreenTitleMenu"
++NextScreen="ScreenTitleMenu"
+ OptionRowNormalMetricsGroup="OptionRowManageLocalProfiles"
+ OptionRowExitMetricsGroup="OptionRowManageLocalProfilesExit"
+ ExplanationTogetherY=_screen.cy+180
+@@ -1569,13 +1638,13 @@ SectionExpandedSetCommand=%function(self) DiffuseEmojis(self) end
+ ParentCollapsedSetCommand=%function(self) DiffuseEmojis(self) end
+ ParentExpandedSetCommand=%function(self) DiffuseEmojis(self) end
+ 
+-CourseOnCommand=halign,0;x,WideScale(65, 104);maxwidth,WideScale(270,350);zoom,0.85
++CourseOnCommand=halign,0;x,SL_DEVICE.WheelTitleX-7;maxwidth,(SL_DEVICE.WheelItemRight-13-SL_DEVICE.WheelTitleX)/0.85;zoom,0.85
+ 
+ # ensure that very long titles don't go off-screen
+-SectionExpandedOnCommand=halign,0;maxwidth,WideScale(240,310)
+-SectionCollapsedOnCommand=halign,0;maxwidth,WideScale(240,310)
+-ParentExpandedOnCommand=halign,0;maxwidth,WideScale(240,310)
+-ParentCollapsedOnCommand=halign,0;maxwidth,WideScale(240,310)
++SectionExpandedOnCommand=halign,0;maxwidth,SL_DEVICE.WheelItemRight-18-33-74
++SectionCollapsedOnCommand=halign,0;maxwidth,SL_DEVICE.WheelItemRight-18-33-74
++ParentExpandedOnCommand=halign,0;maxwidth,SL_DEVICE.WheelItemRight-18-33-74
++ParentCollapsedOnCommand=halign,0;maxwidth,SL_DEVICE.WheelItemRight-18-33-74
+ 
+ SectionExpandedX=WideScale(35, 74)
+ SectionCollapsedX=WideScale(35, 74)
+@@ -1588,9 +1657,9 @@ RouletteX=WideScale(150, 204)
+ RandomX=WideScale(150, 204)
+ PortalX=WideScale(150, 204)
+ 
+-SectionCountX=_screen.w/2 - WideScale(9, 10)
++SectionCountX=SL_DEVICE.WheelItemRight - 18
+ SectionCountOnCommand=horizalign,right;zoom,0.75
+-ChildSectionCountX=_screen.w/2 - WideScale(9, 10)
++ChildSectionCountX=SL_DEVICE.WheelItemRight - 18
+ ChildSectionCountOnCommand=
+ SectionCountSetCommand=%function(self) \
+ 	if ThemePrefs.Get("nice") > 0 and self:GetText()=="69" then \
+@@ -1611,8 +1680,8 @@ GradesShowMachine=false
+ GetReturnsNumbers=true
+ 
+ [TextBanner]
+-TitleOnCommand=halign,0;x,WideScale(75, 111);maxwidth,WideScale(245,350);zoom,0.85
+-SubtitleOnCommand=halign,0;x,WideScale(75, 111);maxwidth,WideScale(245,350);zoom,0.7
++TitleOnCommand=halign,0;x,SL_DEVICE.WheelTitleX;maxwidth,(SL_DEVICE.WheelItemRight-20-SL_DEVICE.WheelTitleX)/0.85;zoom,0.85
++SubtitleOnCommand=halign,0;x,SL_DEVICE.WheelTitleX;maxwidth,(SL_DEVICE.WheelItemRight-20-SL_DEVICE.WheelTitleX)/0.7;zoom,0.7
+ ArtistOnCommand=visible,false
+ AfterSetCommand=%TextBannerAfterSet
+ 
+@@ -1674,9 +1743,11 @@ BannerOnCommand=scaletoclipped,418,164;visible,false;
+ HeaderOnCommand=draworder,101
+ FooterOnCommand=draworder,101
+ 
+-# wheel
+-MusicWheelX=_screen.cx
++# wheel -- device port: zoomed and shifted to fill the space right of the
++# (also zoomed) left column; see Scripts/SL-DeviceLayout.lua
++MusicWheelX=SL_DEVICE.WheelX
+ MusicWheelY=_screen.cy
++MusicWheelOnCommand=zoom,SL_DEVICE.WheelZoom
+ MusicWheelOffCommand=linear,0.2;diffusealpha,0;
+ 
+ MusicWheelCodeMessageCommand=%function(self, params) \
+@@ -1844,7 +1915,8 @@ MeterOnCommand=visible,false
+ HeaderOnCommand=visible,false
+ FooterOnCommand=visible,false
+ 
+-QuestionOnCommand=wrapwidthpixels,_screen.w-100
++# device port: question text 2x (was zoom 1), wrap width halved to match
++QuestionOnCommand=zoom,2;wrapwidthpixels,(_screen.w-100)/2
+ 
+ # Okay
+ Answer1Of1OnCommand=zoom,0.7
