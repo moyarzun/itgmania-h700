@@ -1,0 +1,38 @@
+# This keyboard-emulation config exists ONLY so StepMania's own "Config
+# Key/Joy Mappings" screen (ScreenMapControllers.cpp) is usable. That
+# screen's cursor navigation is hardcoded to `input.DeviceI.device ==
+# DEVICE_KEYBOARD` -- it does not go through Keymaps.ini/GameButton mapping
+# at all, by design, so it still works even if your joystick mapping is
+# completely broken. With no keyboard device present at all (the earlier
+# joystick-only experiment dropped this file and gptokeyb2's -c flag
+# entirely), that one screen became unusable -- confirmed by the user
+# ("cuando ingreso a la vista de mapeo de botones, ya no puedo controlar el
+# menu").
+#
+# Actual gameplay/menu control is NOT wired through these keys at all --
+# Keymaps.ini's [dance] section binds 1_Up/1_Down/1_Left/1_Right/1_Start/
+# 1_Back etc directly to muOS-Keys' real Joy10_Bn/H-* values (muOS-Keys is
+# DEVICE_JOY10 on this device, confirmed via a live gdb breakpoint -- not
+# Joy1). Having gptokeyb2 also emit these keyboard events is harmless for
+# normal play: since nothing in Keymaps.ini binds Key_up/Key_left/etc to
+# any GameButton, InputMapper just ignores them there. It's exactly the
+# earlier double-delivery-per-press bug (traced via a core dump to
+# StepMania's note-judging code corrupting its own std::map iterator) that
+# breaking this single binding-per-action rule caused -- so if any of these
+# lines below are ever also added to Keymaps.ini, that bug comes back.
+a = space
+b = backspace
+x = tab
+y = z
+l1 = q
+l2 = 1
+r1 = w
+r2 = 2
+
+start = enter
+back = esc
+
+up = up
+down = down
+left = left
+right = right
