@@ -80,41 +80,23 @@ static const AutoMappings g_DefaultKeyMappings = AutoMappings(
     AutoMappingEntry(0, KEY_SCRLLOCK, GAME_BUTTON_OPERATOR, false));
 
 void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped() {
-  // Clear default mappings.  Default mappings are in the third slot.
-  FOREACH_ENUM(GameController, i)
-  FOREACH_ENUM(GameButton, j)
-  ClearFromInputMap(GameInput(i, j), 2);
-
-  std::vector<AutoMappingEntry> aMaps;
-  aMaps.reserve(32);
-
-  for (const AutoMappingEntry& iter : g_DefaultKeyMappings.m_vMaps) {
-    aMaps.push_back(iter);
-  }
-  for (const AutoMappingEntry& iter :
-       m_pInputScheme->m_pAutoMappings->m_vMaps) {
-    aMaps.push_back(iter);
-  }
-
-  /* There may be duplicate GAME_BUTTON maps.  Process the list backwards,
-   * so game-specific mappings override g_DefaultKeyMappings. */
-  std::reverse(aMaps.begin(), aMaps.end());
-
-  for (const AutoMappingEntry& m : aMaps) {
-    DeviceButton key = m.m_deviceButton;
-    DeviceInput DeviceI(DEVICE_KEYBOARD, key);
-    GameInput GameI(
-        m.m_bSecondController ? GameController_2 : GameController_1, m.m_gb);
-    if (!IsMapped(DeviceI))  // if this key isn't already being used by another
-                             // user-made mapping
-    {
-      if (!GameI.IsValid()) {
-        ClearFromInputMap(DeviceI);
-      } else {
-        SetInputMap(DeviceI, GameI, 2);
-      }
-    }
-  }
+  // This is a no-op on this port. It used to silently claim any keyboard
+  // key from g_DefaultKeyMappings/m_pAutoMappings that Keymaps.ini itself
+  // didn't already claim (called unconditionally on every
+  // ReadMappingsFromDisk() and after every ScreenMapControllers clear/
+  // assign action) -- a real, repeatedly-rediscovered source of "one
+  // physical button press reaching the engine as two independent GameButton
+  // triggers in the same frame" bugs on the main stepmania_port fork
+  // (traced via live gdb + a core dump to Player::UpdateJudgedRows
+  // corrupting its own std::map iterator). This port's real control is
+  // 100% the explicit Joy10_* Keymaps.ini bindings; gptokeyb2's synthetic
+  // keyboard device only needs to exist at all for ScreenMapControllers's
+  // own hardcoded raw DEVICE_KEYBOARD navigation, which reads
+  // DeviceI.device/button directly and doesn't care whether that key is
+  // mapped to any GameButton. Every candidate "safe" GameButton to alias
+  // gptokeyb2's keys to instead (Coin/Operator/Screenshot/Select) turned
+  // out to have real side effects, so leaving them completely unmapped is
+  // the fix, not a placeholder.
 }
 
 static const AutoMappings g_AutoMappings[] = {

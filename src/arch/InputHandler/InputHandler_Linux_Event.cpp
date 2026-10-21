@@ -143,6 +143,20 @@ bool EventDevice::Open(std::string sFile, InputDevice dev) {
   static const char* kJoystickExceptions[] = {
       "RedOctane USB Pad", "Cobalt Flux Controller"};
 
+  // muOS's own virtual "Fake Absolute Mouse" device (used for its remote/
+  // touch input layer) also exposes ABS_X for cursor position, and would
+  // otherwise get auto-detected as a joystick ahead of the real button
+  // device ("muOS-Keys", which gptokeyb2 actually injects synthetic key
+  // presses into) if let through. A real gamepad/joystick is never named
+  // "...Mouse". Ported from the main stepmania_port fork's identical fix.
+  if (m_sName.find("Mouse") != std::string::npos) {
+    LOG->Info(
+        "    Not a joystick (name contains \"Mouse\"); ignored [%s]",
+        m_sName.c_str());
+    Close();
+    return false;
+  }
+
   if (!BitIsSet(iABSMask, ABS_X) && !BitIsSet(iABSMask, ABS_THROTTLE) &&
       !BitIsSet(iABSMask, ABS_WHEEL)) {
     LOG->Info("    Not a joystick; ignoring [%s]", m_sName.c_str());

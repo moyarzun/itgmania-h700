@@ -36,6 +36,7 @@
 AutoScreenMessage(SM_DoSaveAndExit);
 #define BUTTONS_TO_MAP THEME->GetMetric(m_sName, "ButtonsToMap")
 static LocalizedString INVALID_BUTTON("ScreenMapControllers", "InvalidButton");
+static LocalizedString RESERVED_BUTTON("ScreenMapControllers", "ReservedButton");
 static LocalizedString SAVE_PROMPT("ScreenMapControllers", "SavePrompt");
 #define MAPPED_TO_COMMAND(gc, slot) \
   THEME->GetMetricA(                \
@@ -45,6 +46,33 @@ static const float g_fSecondsToWaitForInput = 0.05f;
 
 // reserve the 3rd slot for hard-coded keys
 static const int NUM_CHANGABLE_SLOTS = NUM_SHOWN_GAME_TO_DEVICE_SLOTS - 1;
+
+// The Primary slot (slot 0) of these six GameButtons is this port's hardcoded
+// console-standard menu control baseline (D-pad = cursor, physical Start/A =
+// confirm, physical Select/B = back). It must survive being "cleared" or
+// reassigned from this screen, or the device could be left with no way to
+// navigate menus at all; the Secondary slot is left fully open so the player
+// can still add e.g. a USB keyboard to replicate the same functions.
+// Gameplay-only buttons (the dance panel, effects, etc, shown on the
+// separate ScreenMapControllersGameplay) are intentionally not covered by
+// this and remain fully user-editable. Ported verbatim from the main
+// stepmania_port fork's identical fix.
+static bool IsProtectedMenuSlot(GameButton gb, int iSlot) {
+  if (iSlot != 0) {
+    return false;
+  }
+  switch (gb) {
+    case GAME_BUTTON_MENULEFT:
+    case GAME_BUTTON_MENURIGHT:
+    case GAME_BUTTON_MENUUP:
+    case GAME_BUTTON_MENUDOWN:
+    case GAME_BUTTON_START:
+    case GAME_BUTTON_BACK:
+      return true;
+    default:
+      return false;
+  }
+}
 
 REGISTER_SCREEN_CLASS(ScreenMapControllers);
 
@@ -297,6 +325,15 @@ void ScreenMapControllers::Update(float fDeltaTime) {
     ASSERT(CursorOnKey());
     const KeyToMap* pKey = &m_KeysToMap[CurKeyIndex()];
 
+    if (IsProtectedMenuSlot(pKey->m_GameButton, m_CurSlot)) {
+      SCREENMAN->SystemMessage(RESERVED_BUTTON.GetValue());
+      SCREENMAN->PlayInvalidSound();
+      pKey->m_textMappedTo[m_CurController][m_CurSlot]->PlayCommand(
+          "MappedInput");
+      Refresh();
+      return;
+    }
+
     GameInput curGameI((GameController)m_CurController, pKey->m_GameButton);
 
     INPUTMAPPER->SetInputMap(m_DeviceIToMap, curGameI, m_CurSlot);
@@ -442,6 +479,12 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
         }
         {
           const KeyToMap* pKey = &m_KeysToMap[CurKeyIndex()];
+          if (IsProtectedMenuSlot(pKey->m_GameButton, m_CurSlot)) {
+            SCREENMAN->SystemMessage(RESERVED_BUTTON.GetValue());
+            SCREENMAN->PlayInvalidSound();
+            bHandled = true;
+            break;
+          }
           GameInput curGameI(
               (GameController)m_CurController, pKey->m_GameButton);
           if (!INPUTMAPPER->ClearFromInputMap(curGameI, m_CurSlot)) {
