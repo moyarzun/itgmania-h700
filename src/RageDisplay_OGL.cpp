@@ -347,6 +347,26 @@ GLhandleARB CompileShader(
 
 GLhandleARB LoadShader(
     GLenum ShaderType, std::string sFile, std::vector<std::string> asDefines) {
+#if defined(HAVE_SDL2_LOWLEVELWINDOW)
+  // gl4es's ARB-suffixed program-object emulation (glCreateProgramObjectARB /
+  // glAttachObjectARB / glLinkProgramARB, used throughout this file instead
+  // of the core GL2 API) crashes inside its own glLinkProgram internals on
+  // this device's Mali-G31 GLESv2 blob -- reproducibly, on the very first
+  // shader loaded, before returning control here. These shaders are all
+  // optional effects (scrolling textures, cel-shading, color blend modes);
+  // every caller already handles a zero handle gracefully, so skip loading
+  // them entirely on this backend rather than crash the whole engine for a
+  // handful of extra visual effects. Ported from the main stepmania_port
+  // fork's identical fix.
+  static bool bWarned = false;
+  if (!bWarned) {
+    LOG->Warn(
+        "Skipping GLSL shader effects: gl4es's ARB program-object path "
+        "crashes on this device (see LoadShader in RageDisplay_OGL.cpp).");
+    bWarned = true;
+  }
+  return 0;
+#endif
   /* Vertex shaders are supported by more hardware than fragment shaders.
    * If this causes any trouble I will have to up the requirement for both
    * of them to at least GL 2.0. Regardless we need basic GLSL support.
