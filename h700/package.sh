@@ -69,5 +69,21 @@ for pkg in libglu1-mesa libopengl0 libglvnd0; do
 done
 cp "$H700/port/LIBRARIES.md" "$L/"
 
+SHOT="$H700/portmaster/screenshot.png"
+[ -f "$SHOT" ] && cp "$SHOT" "$G/screenshot.png"
+
 (cd "$PORT" && zip -qr9 "$DIST/itgmania.zip" .)
 du -sh "$DIST/itgmania.zip"
+
+# PortMaster-New submission folder (ports/itgmania/ in that repo): the port
+# itself plus its metadata. PortMaster builds its own zip from this.
+SUB="$DIST/portmaster/itgmania"
+mkdir -p "$SUB"
+cp -r "$PORT/." "$SUB/"
+cp "$H700/portmaster/"{port.json,gameinfo.xml,README.md} "$SUB/"
+if [ -f "$SHOT" ]; then
+  cp "$SHOT" "$SUB/screenshot.png"
+else
+  echo "warning: no h700/portmaster/screenshot.png (4:3, >= 640x480, gameplay)" >&2
+fi
+echo "submission folder: $SUB"
