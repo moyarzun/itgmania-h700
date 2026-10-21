@@ -39,9 +39,13 @@ NetworkManager* NETWORK =
 
 Preference<bool> NetworkManager::httpEnabled(
     "HttpEnabled", true, nullptr, PreferenceType::Immutable);
+// GrooveStats is a competitive scoreboard built around arcade/cab hardware
+// (dedicated pads, consistent timing). Handheld players on this port aren't
+// on comparable hardware, so score submission is disabled at the network
+// layer -- immutable, so it can't be re-enabled via Preferences.ini or the
+// in-game menu, regardless of the theme's EnableGrooveStats setting.
 Preference<std::string> NetworkManager::httpAllowHosts(
-    "HttpAllowHosts", "*.groovestats.com,*.itgmania.com", nullptr,
-    PreferenceType::Immutable);
+    "HttpAllowHosts", "*.itgmania.com", nullptr, PreferenceType::Immutable);
 
 static const char* HttpErrorCodeNames[] = {
     "Blocked",
