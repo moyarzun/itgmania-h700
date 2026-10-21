@@ -685,7 +685,7 @@ index ae3a40d..37488a7 100644
  		elseif GAMESTATE:GetCoinMode() == "CoinMode_Pay" then
  			local credits = GetCredits()
 diff --git a/BGAnimations/ScreenTextEntry underlay.lua b/BGAnimations/ScreenTextEntry underlay.lua
-index 54b802d..994a27d 100755
+index 54b802d..4fefb02 100755
 --- a/BGAnimations/ScreenTextEntry underlay.lua	
 +++ b/BGAnimations/ScreenTextEntry underlay.lua	
 @@ -1,29 +1,54 @@
@@ -732,10 +732,10 @@ index 54b802d..994a27d 100755
 +-- to lay out the keys (see metrics.ini [ScreenTextEntry]), plus a margin.
 +local kbLeft = SCREEN_LEFT+100
 +local kbRight = SCREEN_RIGHT-100
-+local kbTop = SCREEN_CENTER_Y-44
-+local kbBottom = SCREEN_BOTTOM-50
++local kbTop = SCREEN_CENTER_Y-36
++local kbBottom = SCREEN_CENTER_Y+164
 +local kbMarginX = 40
-+local kbMarginY = 20
++local kbMarginY = 26
 +local kbCenterX = (kbLeft+kbRight)/2
 +local kbCenterY = (kbTop+kbBottom)/2
 +local kbWidth = (kbRight-kbLeft)+kbMarginX*2
@@ -1160,7 +1160,7 @@ index 0000000..46ebef8
 +	return (sx - s.x) / s.zoom, (sy - s.y) / s.zoom
 +end
 diff --git a/metrics.ini b/metrics.ini
-index 2dbe13e..07fee85 100644
+index 2dbe13e..8b90dbc 100644
 --- a/metrics.ini
 +++ b/metrics.ini
 @@ -100,16 +100,20 @@ PrevScreen="ScreenInit"
@@ -1222,7 +1222,7 @@ index 2dbe13e..07fee85 100644
  
  # IconChoiceEndlessX=_screen.cx - 110
  # IconChoiceEndlessY=_screen.cy + 25
-@@ -342,9 +346,18 @@ QuestionY=_screen.cy-60
+@@ -342,9 +346,31 @@ QuestionY=_screen.cy-60
  QuestionOnCommand=_wrapwidthpixels,600
  
  [ScreenTextEntry]
@@ -1238,12 +1238,25 @@ index 2dbe13e..07fee85 100644
  QuestionOnCommand=_wrapwidthpixels,600
 -AnswerY=_screen.cy+16
 +AnswerY=_screen.cy-102
-+RowStartY=_screen.cy-44
-+RowEndY=SCREEN_BOTTOM-50
++RowStartY=_screen.cy-36
++RowEndY=_screen.cy+164
++KeysInitCommand=zoom,1;shadowlength,0
++# QWERTY with Shift instead of the alphabetical grid, and the face buttons as
++# keyboard functions while it's shown (built-in pad, see Keymaps.ini):
++# B = Backspace, X = Shift, Y = Space, Select = Cancel, Start = Done.
++# gptokeyb also turns those buttons into keyboard keys (A = space, Y = z...),
++# so keyboard typing is off or every press would type twice.
++KeyboardLayout="qwerty"
++KeyboardTyping=false
++ShortcutShift="B4"
++ShortcutSpace="B5"
++ShortcutBackspace="B2"
++ShortcutCancel="B11"
++ShortcutDone="B12"
  
  ## Options Section #############################################################
  
-@@ -390,12 +403,20 @@ RightY=1
+@@ -390,12 +416,20 @@ RightY=1
  
  [OptionsUnderlineP1]
  Fallback="OptionsUnderline"
@@ -1264,7 +1277,7 @@ index 2dbe13e..07fee85 100644
  LeftOnCommand=diffuse,PlayerColor(PLAYER_2,true)
  MiddleOnCommand=diffuse,PlayerColor(PLAYER_2,true)
  RightOnCommand=diffuse,PlayerColor(PLAYER_2,true)
-@@ -409,7 +430,7 @@ RightOnCommand=diffuse,PlayerColor(PLAYER_2,true)
+@@ -409,7 +443,7 @@ RightOnCommand=diffuse,PlayerColor(PLAYER_2,true)
  ShowBpmInSpeedTitle=false
  
  TitleX=WideScale(26,40)
@@ -1273,7 +1286,7 @@ index 2dbe13e..07fee85 100644
  TitleGainFocusCommand=%function(self)\
  	self:diffuse(PlayerColor(PLAYER_1)) \
  	DiffuseEmojis(self) \
-@@ -423,8 +444,13 @@ FrameOnCommand=diffusealpha,DarkUI() and 1 or 0.8
+@@ -423,8 +457,13 @@ FrameOnCommand=diffusealpha,DarkUI() and 1 or 0.8
  FrameGainFocusCommand=diffuse,DarkUI() and color("#666666") or color("#333333"); diffusealpha,1
  FrameLoseFocusCommand=diffuse,color("#071016");diffusealpha,DarkUI() and 1 or 0.8
  
@@ -1289,7 +1302,7 @@ index 2dbe13e..07fee85 100644
  
  # the x value of where to draw the single BitmapText item that
  # will display when the OptionRow's layout is ShowOneInRow
-@@ -434,7 +460,7 @@ ItemsLongRowP2X=WideScale(_screen.cx+100,_screen.cx+100)
+@@ -434,7 +473,7 @@ ItemsLongRowP2X=WideScale(_screen.cx+100,_screen.cx+100)
  # pixels between each item when the OptionRow's layout is ShowAllInOneRow
  ItemsGapX=14
  
@@ -1298,7 +1311,7 @@ index 2dbe13e..07fee85 100644
  ItemGainFocusCommand=
  ItemLoseFocusCommand=
  
-@@ -442,13 +468,14 @@ ItemLoseFocusCommand=
+@@ -442,13 +481,14 @@ ItemLoseFocusCommand=
  # where every row is guaranteed to start with a ▼ character
  [OptionRowExtendedPlayerOptions]
  Fallback="OptionRow"
@@ -1316,7 +1329,7 @@ index 2dbe13e..07fee85 100644
  FrameDisabledCommand=diffuse,color("#000000");
  
  [OptionRowSimpleService]
-@@ -468,7 +495,7 @@ FrameOnCommand=diffusealpha,0.7
+@@ -468,7 +508,7 @@ FrameOnCommand=diffusealpha,0.7
  FrameGainFocusCommand=diffuse,color("#293238");diffusealpha,0.8
  FrameLoseFocusCommand=diffuse,color("#071016");diffusealpha,0.8
  TitleGainFocusCommand=diffuse,color("#000000")
@@ -1325,7 +1338,7 @@ index 2dbe13e..07fee85 100644
  
  
  [OptionRowSimpleExit]
-@@ -504,8 +531,8 @@ FooterOnCommand=visible,false
+@@ -504,8 +544,8 @@ FooterOnCommand=visible,false
  Fallback="OptionRow"
  TitleX=WideScale(20, 40)
  FrameX=0
@@ -1336,7 +1349,7 @@ index 2dbe13e..07fee85 100644
  ItemsLongRowSharedX=WideScale(210,285)
  # intentionally empty so it doesn't inherit from [OptionRow]
  FrameOnCommand=
-@@ -560,6 +587,24 @@ Effect,8="mod,tipsy;name,Tipsy"
+@@ -560,6 +600,24 @@ Effect,8="mod,tipsy;name,Tipsy"
  Effect,9="mod,bumpy;name,Bumpy"
  Effect,10="mod,beat;name,Beat"
  
@@ -1361,7 +1374,7 @@ index 2dbe13e..07fee85 100644
  Appearance="5;selectmultiple"
  AppearanceDefault="mod,no hidden,no sudden,no stealth,no blink,no randomvanish"
  Appearance,1="mod,hidden;name,Hidden"
-@@ -601,6 +646,21 @@ Insert,6="mod,echo;name,Echo"
+@@ -601,6 +659,21 @@ Insert,6="mod,echo;name,Echo"
  Insert,7="mod,stomp;name,Stomp"
  Insert,8="mod,mines;name,Mines"
  
@@ -1383,7 +1396,7 @@ index 2dbe13e..07fee85 100644
  Remove="8;selectmultiple"
  RemoveDefault="mod,no little,no nomines,no noholds,no nojumps,no nohands,no noquads,no nolifts,no nofakes"
  Remove,1="mod,little;name,Little"
-@@ -659,7 +719,11 @@ FooterOnCommand=visible,false
+@@ -659,7 +732,11 @@ FooterOnCommand=visible,false
  ShowCreditDisplay=false
  
  OptionRowExitMetricsGroup="OptionRowExit"
@@ -1396,7 +1409,7 @@ index 2dbe13e..07fee85 100644
  
  RepeatRate=30
  AllowRepeatingChangeValueInput=true
-@@ -732,13 +796,13 @@ Line12="list,Effect"
+@@ -732,13 +809,13 @@ Line12="list,Effect"
  Line13="list,Appearance"
  
  ExplanationP1X=WideScale(26,39)
@@ -1414,7 +1427,7 @@ index 2dbe13e..07fee85 100644
  ExplanationP2OffCommand=linear,0.2;diffusealpha,0
  
  
-@@ -776,8 +840,7 @@ OptionRowNormalMetricsGroup="OptionRowExtendedPlayerOptions"
+@@ -776,8 +853,7 @@ OptionRowNormalMetricsGroup="OptionRowExtendedPlayerOptions"
  
  # remove Characters if no dancing character directories were found
  LineNames=(function() \
@@ -1424,7 +1437,7 @@ index 2dbe13e..07fee85 100644
  	if #CHARMAN:GetAllCharacters() < 1 then lines = lines:gsub("Characters,", "") end \
  	return lines \
  end)()
-@@ -789,6 +852,10 @@ LineInsert="list,Insert"
+@@ -789,6 +865,10 @@ LineInsert="list,Insert"
  LineRemove="list,Remove"
  LineRemoveA="list,RemoveA"
  LineRemoveB="list,RemoveB"
@@ -1435,7 +1448,7 @@ index 2dbe13e..07fee85 100644
  LineHolds="list,Holds"
  LineAttacks="list,Attacks"
  LineCharacters="list,Characters"
-@@ -830,8 +897,8 @@ ContainerOffCommand=accelerate,0.3;diffusealpha,0
+@@ -830,8 +910,8 @@ ContainerOffCommand=accelerate,0.3;diffusealpha,0
  RowInitCommand=diffusealpha,0;
  RowOnCommand=linear,0.2;diffusealpha,1;draworder,-1
  RowOffCommand=linear,0.2;diffusealpha,0
@@ -1446,7 +1459,7 @@ index 2dbe13e..07fee85 100644
  
  LineHighlightP1OnCommand=visible,false
  LineHighlightP2OnCommand=visible,false
-@@ -880,7 +947,7 @@ DisqualifyP2OnCommand=zoom,0.25;horizalign,left;diffuse,PlayerColor(PLAYER_2)
+@@ -880,7 +960,7 @@ DisqualifyP2OnCommand=zoom,0.25;horizalign,left;diffuse,PlayerColor(PLAYER_2)
  
  
  [ScreenOptionsSimple]
@@ -1455,7 +1468,7 @@ index 2dbe13e..07fee85 100644
  StopMusicOnBack=false
  SeparateExitRow=false
  ExplanationTogetherX=_screen.cx-25
-@@ -910,7 +977,7 @@ FooterOnCommand=visible,false
+@@ -910,7 +990,7 @@ FooterOnCommand=visible,false
  # and redirect them to change their Visual Style or VideoRenderer, if needed.
  HandleBackButton=false
  
@@ -1464,7 +1477,7 @@ index 2dbe13e..07fee85 100644
  
  # remove ClearCredits if we're not in CoinMode_Pay; it doesn't make sense to show for at-home players
  # note that (EventMode + CoinMode_Pay) will actually place you in CoinMode_Home
-@@ -918,7 +985,7 @@ NumRowsShown=10
+@@ -918,7 +998,7 @@ NumRowsShown=10
  # remove CustomSongs if the corresponding preferences don't exist in Preferences.ini
  # CustomSongs wasn't added until 5.1 beta, but SL still supports 5.0.12 for now
  LineNames=(function() \
@@ -1473,7 +1486,7 @@ index 2dbe13e..07fee85 100644
     if GAMESTATE:GetCoinMode() ~= "CoinMode_Pay" then lines = lines:gsub("ClearCredits,", "") end \
     if not PREFSMAN:PreferenceExists("CustomSongsEnable") then lines = lines:gsub("USBProfileOptions,", "") end \
     return lines \
-@@ -934,13 +1001,11 @@ LineBookkeeping="gamecommand;screen,ScreenBookkeeping;name,Bookkeeping"
+@@ -934,13 +1014,11 @@ LineBookkeeping="gamecommand;screen,ScreenBookkeeping;name,Bookkeeping"
  LineAdvancedOptions="gamecommand;screen,ScreenAdvancedOptions;name,AdvancedOptions"
  LineMenuTimerOptions="gamecommand;screen,ScreenMenuTimerOptions;name,MenuTimerOptions"
  LineUSBProfileOptions="gamecommand;screen,ScreenUSBProfileOptions;name,USBProfileOptions"
@@ -1487,7 +1500,7 @@ index 2dbe13e..07fee85 100644
  
  ExplanationTogetherOnCommand=visible,false
  
-@@ -1303,6 +1368,10 @@ FooterOnCommand=visible,false
+@@ -1303,6 +1381,10 @@ FooterOnCommand=visible,false
  
  
  [ScreenOptionsManageProfiles]
@@ -1498,7 +1511,7 @@ index 2dbe13e..07fee85 100644
  OptionRowNormalMetricsGroup="OptionRowManageLocalProfiles"
  OptionRowExitMetricsGroup="OptionRowManageLocalProfilesExit"
  ExplanationTogetherY=_screen.cy+180
-@@ -1569,13 +1638,13 @@ SectionExpandedSetCommand=%function(self) DiffuseEmojis(self) end
+@@ -1569,13 +1651,13 @@ SectionExpandedSetCommand=%function(self) DiffuseEmojis(self) end
  ParentCollapsedSetCommand=%function(self) DiffuseEmojis(self) end
  ParentExpandedSetCommand=%function(self) DiffuseEmojis(self) end
  
@@ -1517,7 +1530,7 @@ index 2dbe13e..07fee85 100644
  
  SectionExpandedX=WideScale(35, 74)
  SectionCollapsedX=WideScale(35, 74)
-@@ -1588,9 +1657,9 @@ RouletteX=WideScale(150, 204)
+@@ -1588,9 +1670,9 @@ RouletteX=WideScale(150, 204)
  RandomX=WideScale(150, 204)
  PortalX=WideScale(150, 204)
  
@@ -1529,7 +1542,7 @@ index 2dbe13e..07fee85 100644
  ChildSectionCountOnCommand=
  SectionCountSetCommand=%function(self) \
  	if ThemePrefs.Get("nice") > 0 and self:GetText()=="69" then \
-@@ -1611,8 +1680,8 @@ GradesShowMachine=false
+@@ -1611,8 +1693,8 @@ GradesShowMachine=false
  GetReturnsNumbers=true
  
  [TextBanner]
@@ -1540,7 +1553,7 @@ index 2dbe13e..07fee85 100644
  ArtistOnCommand=visible,false
  AfterSetCommand=%TextBannerAfterSet
  
-@@ -1674,9 +1743,11 @@ BannerOnCommand=scaletoclipped,418,164;visible,false;
+@@ -1674,9 +1756,11 @@ BannerOnCommand=scaletoclipped,418,164;visible,false;
  HeaderOnCommand=draworder,101
  FooterOnCommand=draworder,101
  
@@ -1554,7 +1567,7 @@ index 2dbe13e..07fee85 100644
  MusicWheelOffCommand=linear,0.2;diffusealpha,0;
  
  MusicWheelCodeMessageCommand=%function(self, params) \
-@@ -1844,7 +1915,8 @@ MeterOnCommand=visible,false
+@@ -1844,7 +1928,8 @@ MeterOnCommand=visible,false
  HeaderOnCommand=visible,false
  FooterOnCommand=visible,false
  
