@@ -107,6 +107,7 @@ class MovieTexture_Generic : public RageMovieTexture {
   virtual void SetPlaybackRate(float rate) { rate_ = rate; }
   void SetLooping(bool looping = true) { loop_ = looping; }
   uintptr_t GetTexHandle() const;
+  bool HasDecodedFirstFrame() const { return got_first_frame_; }
 
   static EffectMode GetEffectMode(MovieDecoderPixelFormatYCbCr fmt);
 
@@ -121,6 +122,9 @@ class MovieTexture_Generic : public RageMovieTexture {
 
   // If true, halts all decoding and display.
   bool failure_ = false;
+
+  // Set once UpdateFrame() has successfully uploaded a real decoded frame.
+  bool got_first_frame_ = false;
 
   uintptr_t texture_handle_;
   std::unique_ptr<RageTextureRenderTarget> render_target_;

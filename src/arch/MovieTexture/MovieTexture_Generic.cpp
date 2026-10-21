@@ -383,6 +383,8 @@ void MovieTexture_Generic::UpdateFrame() {
     texture_lock_->Unlock(surface_, true);
   }
 
+  got_first_frame_ = true;
+
   if (render_target_ != nullptr) {
     CHECKPOINT_M("About to upload the texture.");
 

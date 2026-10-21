@@ -38,6 +38,7 @@ Sprite::Sprite() {
   m_bUsingCustomPosCoords = false;
   m_bSkipNextUpdate = true;
   m_DecodeMovie = false;
+  m_bGotFirstMovieFrame = false;
   m_EffectMode = EffectMode_Normal;
 
   m_fRememberedClipWidth = -1;
@@ -71,6 +72,7 @@ Sprite::Sprite(const Sprite& cpy) : Actor(cpy) {
   CPY(m_bUsingCustomPosCoords);
   CPY(m_bSkipNextUpdate);
   CPY(m_DecodeMovie);
+  CPY(m_bGotFirstMovieFrame);
   CPY(m_EffectMode);
   memcpy(m_CustomTexCoords, cpy.m_CustomTexCoords, sizeof(m_CustomTexCoords));
   memcpy(m_CustomPosCoords, cpy.m_CustomPosCoords, sizeof(m_CustomPosCoords));
@@ -99,6 +101,7 @@ Sprite& Sprite::operator=(Sprite other) {
   SWAP(m_bUsingCustomPosCoords);
   SWAP(m_bSkipNextUpdate);
   SWAP(m_DecodeMovie);
+  SWAP(m_bGotFirstMovieFrame);
   SWAP(m_EffectMode);
   memcpy(m_CustomTexCoords, other.m_CustomTexCoords, sizeof(m_CustomTexCoords));
   memcpy(m_CustomPosCoords, other.m_CustomPosCoords, sizeof(m_CustomPosCoords));
@@ -365,6 +368,7 @@ void Sprite::LoadFromTexture(RageTextureID ID) {
 
   if (ActorUtil::GetFileType(ID.filename) == FT_Movie) {
     m_DecodeMovie = true;
+    m_bGotFirstMovieFrame = false;
   }
 
   SetTexture(pTexture);
@@ -473,9 +477,17 @@ void Sprite::Update(float fDelta) {
 
   UpdateAnimationState();
 
-  // If the texture is a movie, decode frames.
-  if (!bSkipThisMovieUpdate && m_DecodeMovie) {
+  // If the texture is a movie, decode frames. Even when animation is
+  // disabled (m_DecodeMovie == false, e.g. AnimateBanners off), keep pulling
+  // frames until the first real one lands -- otherwise the sprite is left
+  // showing CreateTexture()'s blank initial content forever instead of a
+  // representative still frame. Once we have one, stop for good.
+  if (!bSkipThisMovieUpdate &&
+      (m_DecodeMovie || !m_bGotFirstMovieFrame)) {
     m_pTexture->UpdateMovie(std::max(0.0f, fTimePassed));
+    if (!m_DecodeMovie) {
+      m_bGotFirstMovieFrame = m_pTexture->HasDecodedFirstFrame();
+    }
   }
 
   // update scrolling

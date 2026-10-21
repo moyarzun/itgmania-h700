@@ -127,6 +127,10 @@ class Sprite : public Actor {
   bool m_bUsingCustomTexCoords;
   bool m_bUsingCustomPosCoords;
   bool m_bSkipNextUpdate;
+  // When m_DecodeMovie is false (e.g. AnimateBanners off), we still want to
+  // display a real decoded frame instead of the blank texture CreateTexture()
+  // starts with -- keep pulling frames until the first one lands, then stop.
+  bool m_bGotFirstMovieFrame;
   /**
    * @brief Set up the coordinates for the texture.
    *

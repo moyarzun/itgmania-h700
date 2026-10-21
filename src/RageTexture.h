@@ -27,6 +27,9 @@ class RageTexture {
   virtual void SetPlaybackRate(float) {}
   virtual bool IsAMovie() const { return false; }
   virtual void SetLooping(bool) {}
+  // True once a real decoded frame has been uploaded (always true for a
+  // non-movie texture, which has real pixel data from the moment it loads).
+  virtual bool HasDecodedFirstFrame() const { return true; }
 
   int GetSourceWidth() const { return m_iSourceWidth; }
   int GetSourceHeight() const { return m_iSourceHeight; }
