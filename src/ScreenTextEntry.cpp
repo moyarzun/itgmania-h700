@@ -24,16 +24,51 @@
 #include "ThemeManager.h"
 #include "arch/ArchHooks/ArchHooks.h"  // HOOKS->GetClipboard()
 
-static const char* g_szKeys[NUM_KeyboardRow][KEYS_PER_ROW] = {
-    {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"},
-    {"N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"},
-    {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"},
-    {"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"},
-    {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", ""},
-    {"!", "@", "#", "$", "%", "^", "&", "(", ")", "[", "]", "{", "}"},
-    {"+", "-", "=", "_", ",", ".", "'", "\"", ":", "", "", "", ""},
-    {"", "", "Space", "", "", "Backspace", "", "", "Cancel", "", "", "Done",
-     ""},
+// On-screen keyboard layouts for ScreenTextEntryVisual. The last row of each
+// layout holds the special keys, which are named after their function and
+// shown through the theme's [ScreenTextEntry] strings. Unlisted cells are
+// empty (no key there).
+struct VisualKeyboardLayout {
+  const char* name;
+  int rows;  // including the special row
+  const char* keys[NUM_KeyboardRow][KEYS_PER_ROW];
+  // Labels while Shift is on; a null/empty cell keeps the unshifted label.
+  const char* shifted[NUM_KeyboardRow][KEYS_PER_ROW];
+};
+
+static const VisualKeyboardLayout g_KeyboardLayouts[] = {
+    {"alphabetical",
+     NUM_KeyboardRow,
+     {
+         {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"},
+         {"N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"},
+         {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"},
+         {"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"},
+         {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", ""},
+         {"!", "@", "#", "$", "%", "^", "&", "(", ")", "[", "]", "{", "}"},
+         {"+", "-", "=", "_", ",", ".", "'", "\"", ":", "", "", "", ""},
+         {"", "", "Space", "", "", "Backspace", "", "", "Cancel", "", "",
+          "Done", ""},
+     },
+     {}},
+    // Rows are staggered like a physical keyboard; Shift turns letters to
+    // upper case and the number/punctuation keys to their shifted symbols.
+    {"qwerty",
+     5,
+     {
+         {"`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="},
+         {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"},
+         {"", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", ""},
+         {"", "", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", ""},
+         {"Shift", "", "", "Space", "", "", "Backspace", "", "", "Cancel", "",
+          "", "Done"},
+     },
+     {
+         {"~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+"},
+         {"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "|"},
+         {"", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", "\"", ""},
+         {"", "", "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", ""},
+     }},
 };
 
 std::string ScreenTextEntry::s_sLastAnswer = "";
@@ -582,6 +617,27 @@ void ScreenTextEntryVisual::Init() {
   ROW_START_Y.Load(m_sName, "RowStartY");
   ROW_END_X.Load(m_sName, "RowEndX");
   ROW_END_Y.Load(m_sName, "RowEndY");
+  KEYBOARD_LAYOUT.Load(m_sName, "KeyboardLayout");
+  KEYBOARD_TYPING.Load(m_sName, "KeyboardTyping");
+
+  m_pLayout = &g_KeyboardLayouts[0];
+  for (const VisualKeyboardLayout& layout : g_KeyboardLayouts) {
+    if (KEYBOARD_LAYOUT.GetValue() == layout.name) {
+      m_pLayout = &layout;
+    }
+  }
+  m_iNumRows = m_pLayout->rows;
+  m_bShift = false;
+
+  static const char* const kShortcuts[] = {
+      "Shift", "Space", "Backspace", "Cancel", "Done"};
+  for (const char* sKey : kShortcuts) {
+    ThemeMetric<std::string> sButton(m_sName, std::string("Shortcut") + sKey);
+    DeviceButton button = StringToDeviceButton(sButton.GetValue());
+    if (button != DeviceButton_Invalid) {
+      m_vShortcuts.emplace_back(button, sKey);
+    }
+  }
 
   ScreenTextEntry::Init();
 
@@ -597,18 +653,13 @@ void ScreenTextEntryVisual::Init() {
     text.SetName("Keys");
     ActorUtil::LoadAllCommands(text, m_sName);
     text.PlayCommand("Init");
+    m_KeyColor = text.GetDiffuse();
 
     FOREACH_KeyboardRow(r) {
       for (int x = 0; x < KEYS_PER_ROW; ++x) {
         BitmapText*& pbt = m_ptextKeys[r][x];
         pbt = text.Copy();
         this->AddChild(pbt);
-
-        std::string s = g_szKeys[r][x];
-        if (!s.empty() && r == KEYBOARD_ROW_SPECIAL) {
-          s = THEME->GetString(m_sName, s);
-        }
-        pbt->SetText(s);
       }
     }
   }
@@ -621,19 +672,56 @@ ScreenTextEntryVisual::~ScreenTextEntryVisual() {
       RageUtil::SafeDelete(m_ptextKeys[r][x]);
 }
 
+std::string ScreenTextEntryVisual::KeyAt(int iRow, int iCol) const {
+  if (iRow < 0 || iRow >= m_iNumRows || iCol < 0 || iCol >= KEYS_PER_ROW) {
+    return std::string();
+  }
+  const char* sShifted = m_pLayout->shifted[iRow][iCol];
+  if (m_bShift && sShifted != nullptr && *sShifted != '\0') {
+    return sShifted;
+  }
+  const char* sKey = m_pLayout->keys[iRow][iCol];
+  return sKey != nullptr ? sKey : "";
+}
+
+void ScreenTextEntryVisual::RefreshKeyLabels() {
+  FOREACH_KeyboardRow(r) {
+    for (int x = 0; x < KEYS_PER_ROW; ++x) {
+      BitmapText& bt = *m_ptextKeys[r][x];
+      std::string s = KeyAt(r, x);
+      bool bLitShift = m_bShift && IsSpecialRow(r) && s == "Shift";
+      if (!s.empty() && IsSpecialRow(r)) {
+        s = THEME->GetString(m_sName, s);
+      }
+      bt.SetText(s);
+      bt.SetDiffuse(bLitShift ? RageColor(1, 0.8f, 0.2f, 1) : m_KeyColor);
+    }
+  }
+}
+
 void ScreenTextEntryVisual::BeginScreen() {
   ScreenTextEntry::BeginScreen();
 
   m_iFocusX = 0;
-  m_iFocusY = (KeyboardRow)0;
+  m_iFocusY = 0;
+  m_bShift = false;
+  RefreshKeyLabels();
+  // Start on a real key (the first cell of a staggered row may be empty).
+  while (KeyAt(m_iFocusY, m_iFocusX).empty() && m_iFocusX < KEYS_PER_ROW - 1) {
+    ++m_iFocusX;
+  }
 
   FOREACH_KeyboardRow(r) {
     for (int x = 0; x < KEYS_PER_ROW; ++x) {
       BitmapText& bt = *m_ptextKeys[r][x];
+      bt.SetVisible(r < m_iNumRows);
+      if (r >= m_iNumRows) {
+        continue;
+      }
       float fX =
           std::round(SCALE(x, 0, KEYS_PER_ROW - 1, ROW_START_X, ROW_END_X));
       float fY =
-          std::round(SCALE(r, 0, NUM_KeyboardRow - 1, ROW_START_Y, ROW_END_Y));
+          std::round(SCALE(r, 0, m_iNumRows - 1, ROW_START_Y, ROW_END_Y));
       bt.SetXY(fX, fY);
     }
   }
@@ -645,14 +733,18 @@ void ScreenTextEntryVisual::PositionCursor() {
   BitmapText& bt = *m_ptextKeys[m_iFocusY][m_iFocusX];
   m_sprCursor->SetXY(bt.GetX(), bt.GetY());
   m_sprCursor->PlayCommand(
-      m_iFocusY == KEYBOARD_ROW_SPECIAL ? "SpecialKey" : "RegularKey");
+      IsSpecialRow(m_iFocusY) ? "SpecialKey" : "RegularKey");
 }
 
 void ScreenTextEntryVisual::TextEnteredDirectly() {
   // If the user enters text with a keyboard, jump to DONE, so enter ends the
   // screen.
-  m_iFocusY = KEYBOARD_ROW_SPECIAL;
-  m_iFocusX = DONE;
+  m_iFocusY = m_iNumRows - 1;
+  for (int x = 0; x < KEYS_PER_ROW; ++x) {
+    if (KeyAt(m_iFocusY, x) == "Done") {
+      m_iFocusX = x;
+    }
+  }
 
   PositionCursor();
 }
@@ -663,7 +755,7 @@ void ScreenTextEntryVisual::MoveX(int iDir) {
     m_iFocusX += iDir;
     wrap(m_iFocusX, KEYS_PER_ROW);
 
-    sKey = g_szKeys[m_iFocusY][m_iFocusX];
+    sKey = KeyAt(m_iFocusY, m_iFocusX);
   } while (sKey == "");
 
   m_sndChange.Play(true);
@@ -673,25 +765,26 @@ void ScreenTextEntryVisual::MoveX(int iDir) {
 void ScreenTextEntryVisual::MoveY(int iDir) {
   std::string sKey;
   do {
-    m_iFocusY = enum_add2(m_iFocusY, +iDir);
-    wrap(*ConvertValue<int>(&m_iFocusY), NUM_KeyboardRow);
+    m_iFocusY += iDir;
+    wrap(m_iFocusY, m_iNumRows);
 
-    // HACK: Round to nearest option so that we always stop
-    // on KEYBOARD_ROW_SPECIAL.
-    if (m_iFocusY == KEYBOARD_ROW_SPECIAL) {
-      for (int i = 0; true; i++) {
-        sKey = g_szKeys[m_iFocusY][m_iFocusX];
-        if (sKey != "") {
-          break;
+    // Rows can have gaps (the special row, staggered rows): stop on the
+    // nearest key, probing one space to the left before looking right.
+    if (KeyAt(m_iFocusY, m_iFocusX) == "") {
+      int iBest = -1;
+      for (int d = 1; d < KEYS_PER_ROW && iBest == -1; ++d) {
+        if (KeyAt(m_iFocusY, m_iFocusX - d) != "") {
+          iBest = m_iFocusX - d;
+        } else if (KeyAt(m_iFocusY, m_iFocusX + d) != "") {
+          iBest = m_iFocusX + d;
         }
-
-        // UGLY: Probe one space to the left before looking to the right
-        m_iFocusX += (i == 0) ? -1 : +1;
-        wrap(m_iFocusX, KEYS_PER_ROW);
+      }
+      if (iBest != -1) {
+        m_iFocusX = iBest;
       }
     }
 
-    sKey = g_szKeys[m_iFocusY][m_iFocusX];
+    sKey = KeyAt(m_iFocusY, m_iFocusX);
   } while (sKey == "");
 
   m_sndChange.Play(true);
@@ -727,30 +820,62 @@ bool ScreenTextEntryVisual::MenuDown(const InputEventPlus& input) {
   return true;
 }
 
+bool ScreenTextEntryVisual::PressSpecialKey(const std::string& sKey) {
+  if (sKey == "Shift") {
+    m_bShift = !m_bShift;
+    RefreshKeyLabels();
+    m_sndChange.Play(true);
+  } else if (sKey == "Space") {
+    TryAppendToAnswer(" ");
+  } else if (sKey == "Backspace") {
+    BackspaceInAnswer();
+  } else if (sKey == "Cancel") {
+    End(true);
+  } else if (sKey == "Done") {
+    End(false);
+  } else {
+    return false;
+  }
+  return true;
+}
+
+bool ScreenTextEntryVisual::Input(const InputEventPlus& input) {
+  if (IsTransitioning()) {
+    return false;
+  }
+
+  // Joystick shortcuts act on the raw button, before (and instead of) the
+  // GameButton it is mapped to, and only while this screen is up. All of
+  // the button's events are consumed so it doesn't also navigate or type.
+  if (input.DeviceI.IsJoystick()) {
+    for (const auto& shortcut : m_vShortcuts) {
+      if (shortcut.first != input.DeviceI.button) {
+        continue;
+      }
+      if (input.type == IET_FIRST_PRESS ||
+          (input.type == IET_REPEAT && shortcut.second == "Backspace")) {
+        PressSpecialKey(shortcut.second);
+      }
+      return true;
+    }
+  }
+
+  if (!KEYBOARD_TYPING && input.DeviceI.device == DEVICE_KEYBOARD) {
+    return true;
+  }
+
+  return ScreenTextEntry::Input(input);
+}
+
 bool ScreenTextEntryVisual::MenuStart(const InputEventPlus& input) {
   if (input.type != IET_FIRST_PRESS) {
     return false;
   }
-  if (m_iFocusY == KEYBOARD_ROW_SPECIAL) {
-    switch (m_iFocusX) {
-      case SPACEBAR:
-        TryAppendToAnswer(" ");
-        break;
-      case BACKSPACE:
-        BackspaceInAnswer();
-        break;
-      case CANCEL:
-        End(true);
-        break;
-      case DONE:
-        End(false);
-        break;
-      default:
-        return false;
-    }
-  } else {
-    TryAppendToAnswer(g_szKeys[m_iFocusY][m_iFocusX]);
+  std::string sKey = KeyAt(m_iFocusY, m_iFocusX);
+  if (IsSpecialRow(m_iFocusY)) {
+    return PressSpecialKey(sKey);
   }
+  TryAppendToAnswer(sKey);
   return true;
 }
 

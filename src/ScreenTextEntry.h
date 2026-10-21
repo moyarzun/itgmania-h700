@@ -2,6 +2,8 @@
 #define SCREEN_TEXT_ENTRY_H
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "AutoActor.h"
 #include "BitmapText.h"
@@ -147,18 +149,39 @@ class ScreenTextEntry : public ScreenWithMenuElements {
   RageTimer m_timerToggleCursor;
 };
 
+struct VisualKeyboardLayout;
+
 /** @brief Displays a text entry box and keyboard over the top of another
- * screen. */
+ * screen.
+ *
+ * Theme metrics in [ScreenTextEntry]:
+ * - KeyboardLayout: "alphabetical" (the classic A-Z grid) or "qwerty" (QWERTY
+ *   rows with a Shift key that switches to upper case and symbols).
+ * - KeyboardTyping: whether keys from a keyboard device type into the
+ *   answer. Off for gamepad-only devices whose button remappers also emit
+ *   keyboard events.
+ * - ShortcutShift/Space/Backspace/Cancel/Done: a joystick button name
+ *   ("B2", ...) that triggers that keyboard function directly while this
+ *   screen is shown, or empty for none. */
 class ScreenTextEntryVisual : public ScreenTextEntry {
  public:
   ~ScreenTextEntryVisual();
   void Init();
   void BeginScreen();
+  bool Input(const InputEventPlus& input);
 
  protected:
   void MoveX(int iDir);
   void MoveY(int iDir);
   void PositionCursor();
+
+  /** @brief The label of the key at (row, column) in the current Shift
+   * state; empty if there's no key there. */
+  std::string KeyAt(int iRow, int iCol) const;
+  bool IsSpecialRow(int iRow) const { return iRow == m_iNumRows - 1; }
+  void RefreshKeyLabels();
+  /** @brief Shift, Space, Backspace, Cancel or Done. */
+  bool PressSpecialKey(const std::string& sKey);
 
   virtual void TextEnteredDirectly();
 
@@ -170,10 +193,16 @@ class ScreenTextEntryVisual : public ScreenTextEntry {
   virtual bool MenuStart(const InputEventPlus& input);
 
   int m_iFocusX;
-  KeyboardRow m_iFocusY;
+  int m_iFocusY;
+  // Rows in the active layout; the last one holds Space/Backspace/etc.
+  int m_iNumRows;
+  bool m_bShift;
+  const VisualKeyboardLayout* m_pLayout;
+  std::vector<std::pair<DeviceButton, std::string>> m_vShortcuts;
 
   AutoActor m_sprCursor;
   BitmapText* m_ptextKeys[NUM_KeyboardRow][KEYS_PER_ROW];
+  RageColor m_KeyColor;
 
   RageSound m_sndChange;
 
@@ -181,6 +210,8 @@ class ScreenTextEntryVisual : public ScreenTextEntry {
   ThemeMetric<float> ROW_START_Y;
   ThemeMetric<float> ROW_END_X;
   ThemeMetric<float> ROW_END_Y;
+  ThemeMetric<std::string> KEYBOARD_LAYOUT;
+  ThemeMetric<bool> KEYBOARD_TYPING;
 };
 
 #endif
