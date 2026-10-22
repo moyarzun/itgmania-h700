@@ -42,7 +42,7 @@ Requirements: git, podman (or docker), ~10 GB of disk. Nothing else on the
 host: the cross compiler and target libraries live in containers.
 
 ```bash
-git clone -b h700 --recurse-submodules https://github.com/<owner>/itgmania-h700.git
+git clone -b h700 --recurse-submodules https://github.com/moyarzun/itgmania-h700.git
 cd itgmania-h700
 ./h700/build.sh      # -> ./itgmania (aarch64)
 ./h700/package.sh    # -> h700/dist/itgmania.zip

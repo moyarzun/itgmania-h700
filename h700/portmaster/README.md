@@ -34,11 +34,11 @@ device.
 
 ## Compile
 
-Source, patches and build scripts: https://github.com/<owner>/itgmania-h700
+Source, patches and build scripts: https://github.com/moyarzun/itgmania-h700
 (branch `h700`; see `h700/README.md`).
 
 ```sh
-git clone -b h700 --recurse-submodules https://github.com/<owner>/itgmania-h700.git
+git clone -b h700 --recurse-submodules https://github.com/moyarzun/itgmania-h700.git
 cd itgmania-h700
 ./h700/build.sh     # cross-compiles ./itgmania for aarch64 in a container
 ./h700/package.sh   # assembles the port in h700/dist/

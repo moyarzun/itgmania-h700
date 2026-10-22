@@ -47,8 +47,11 @@ export PIPEWIRE_RUNTIME_DIR=/run
 # Save data lives in ~/.itgmania. On first run (or after a firmware
 # reinstall wiped it) seed the settings this device needs: the built-in
 # controls (muOS-Keys is DEVICE_JOY10 to the engine), a 16:9 720x405 render
-# letterboxed in the 720x480 panel, no joystick auto-mapping, and a
-# line-by-line log for the loading screen. Existing values are left alone.
+# letterboxed in the 720x480 panel, no joystick auto-mapping, a
+# line-by-line log for the loading screen, smaller image/movie textures
+# (1 GB of RAM, no swap: 1080p backgrounds got the game OOM-killed) and a
+# larger audio buffer than the 512-frame Linux default (it underran through
+# PipeWire's ALSA plugin). Existing values are left alone.
 SAVEDIR="$HOME/.itgmania/Save"
 mkdir -p "$SAVEDIR"
 if ! grep -q "Joy10_" "$SAVEDIR/Keymaps.ini" 2>/dev/null; then
@@ -97,13 +100,6 @@ $GPTOKEYB2 "$BINARY" -c "./controls.gptk" &
 
 pm_platform_helper "$GAMEDIR/$BINARY"
 
-# Core dumps go to tmpfs: the SD card is exFAT and silently produces 0-byte
-# core files.
-ulimit -c unlimited
-CORE_PATTERN_PATH="/proc/sys/kernel/core_pattern"
-ORIGINAL_CORE_PATTERN="$(cat "$CORE_PATTERN_PATH" 2>/dev/null)"
-echo "/tmp/itgmania-%e-%p.core" > "$CORE_PATTERN_PATH" 2>/dev/null
-
 # Loading screen: the engine loads/caches every song before it opens its
 # window (no LoadingWindow without X11), so startup is otherwise a black
 # screen -- minutes long after adding packs. Draws to /dev/fb0 and exits on
@@ -117,10 +113,6 @@ python3 "$GAMEDIR/loading_splash/loading_splash.py" &
 
 ./$BINARY
 echo "ITGmania exited with code $?"
-
-if [ -n "$ORIGINAL_CORE_PATTERN" ]; then
-  echo "$ORIGINAL_CORE_PATTERN" > "$CORE_PATTERN_PATH" 2>/dev/null
-fi
 
 if [ -n "$HALLKEY_OVERRIDE" ]; then
   while mountpoint -q "$HALLKEY_PATH"; do
