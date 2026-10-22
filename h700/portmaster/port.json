@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "name": "itgmania.zip",
   "items": [
     "ITGMania.sh",
@@ -21,10 +21,13 @@
     "image": null,
     "rtr": true,
     "exp": false,
-    "runtime": null,
+    "runtime": [],
+    "store": [],
+    "availability": "full",
     "reqs": [],
     "arch": [
       "aarch64"
-    ]
+    ],
+    "min_glibc": "2.30"
   }
 }
