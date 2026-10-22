@@ -2,13 +2,13 @@
 
 ITGmania v1.3.0 with the Simply Love theme, adapted to Allwinner H700 handhelds
 running muOS (tested on an Anbernic RG SP): an SDL2 window backend for the
-Mali fbdev driver (drawn through gl4es), a theme layout for the 720x480
-screen, handheld controls and a loading screen while songs load.
+Mali fbdev driver (drawn through gl4es), a 16:9 theme layout (letterboxed on
+taller screens) and handheld controls.
 
 Three songs are included (the ones ITGmania itself ships). Add song packs to
 `ports/itgmania/Songs/` -- each pack is a folder of song folders. The first
 start after adding packs caches them and can take a few minutes; later starts
-are fast. Settings, scores and profiles are stored in `~/.itgmania/`.
+are fast. Settings, scores and profiles are stored in `ports/itgmania/conf/`.
 
 GrooveStats score submission is disabled in this port.
 

@@ -4,7 +4,7 @@
 # Output: h700/dist/itgmania.zip, laid out like a PortMaster port:
 #   ITGMania.sh          launcher
 #   itgmania/            engine, game data, Simply Love (+ h700 patch),
-#                        lib/, loading splash, defaults, licenses/
+#                        gl4es.aarch64/, libs.aarch64/, defaults, licenses/
 #
 # Only the songs that ship with ITGmania itself (Songs/StepMania 5) are
 # included; users add their own packs to itgmania/Songs/.
@@ -26,13 +26,15 @@ cp "$H700/port/ITGMania.sh" "$PORT/"
 cp "$ROOT/itgmania" "$G/"
 cp "$H700/port/controls.gptk" "$G/"
 cp -r "$H700/port/defaults" "$G/"
-mkdir -p "$G/loading_splash"
-cp -r "$H700/port/loading_splash/"{loading_splash.py,build_assets.py,README.md,assets} "$G/loading_splash/"
 # exFAT (the usual SD card filesystem) can't hold symlinks: copy real files,
-# once each, under the SONAME the loader asks for.
-mkdir -p "$G/lib"
-for so in libGL.so.1 libEGL.so.1 libGLU.so.1 libOpenGL.so.0 libGLdispatch.so.0; do
-  cp -L "$H700/port/lib/$so" "$G/lib/$so"
+# once each, under the SONAME the loader asks for. gl4es goes where
+# PortMaster's libgl_*.txt looks for it.
+mkdir -p "$G/gl4es.aarch64" "$G/libs.aarch64"
+for so in libGL.so.1 libEGL.so.1; do
+  cp -L "$H700/port/lib/$so" "$G/gl4es.aarch64/$so"
+done
+for so in libGLU.so.1 libOpenGL.so.0 libGLdispatch.so.0; do
+  cp -L "$H700/port/lib/$so" "$G/libs.aarch64/$so"
 done
 
 for d in Announcers BackgroundEffects BackgroundTransitions BGAnimations \

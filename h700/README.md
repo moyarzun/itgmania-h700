@@ -28,13 +28,15 @@ Engine (commits on top of `v1.3.0`, see `git log v1.3.0..h700`):
   comparable to cabinet scores).
 
 Theme: `patches/simply-love.patch` adapts Simply Love 5.9.0 (the submodule
-commit pinned by v1.3.0) to the 720x480 screen (`Scripts/SL-DeviceLayout.lua`
-and the screens that use it). It is applied at packaging time.
+commit pinned by v1.3.0) to small 16:9 screens (`Scripts/SL-DeviceLayout.lua`
+and the screens that use it). It is applied at packaging time. The launcher
+renders the largest 16:9 area that fits the screen PortMaster reports
+(720x405 on a 720x480 panel, 640x360 on 640x480), letterboxing the rest.
 
 Port (`port/`): the PortMaster launcher, gptokeyb controls, default
-`Keymaps.ini`/`Preferences.ini` seeded on first run, bundled GL libraries
-(`port/LIBRARIES.md`) and a loading screen shown while songs load
-(`port/loading_splash/`).
+`Keymaps.ini`/`Preferences.ini` seeded on first run into the port's `conf/`
+folder (bound to `~/.itgmania`), and bundled GL libraries
+(`port/LIBRARIES.md`).
 
 ## Building
 
@@ -64,7 +66,7 @@ configures the engine with `h700/cross/toolchain-aarch64.cmake` and these option
 Unzip `h700/dist/itgmania.zip` into the SD card's `ports` folder (it contains
 `ITGMania.sh` and `itgmania/`), put song packs in `ports/itgmania/Songs/`, and
 launch ITGMania from the Ports menu. The first start after adding packs takes
-a while (about 90 s for ~1,700 songs); the loading screen shows progress.
+a while (about 90 s for ~1,700 songs) behind a "Loading songs..." message.
 
 ## Licenses
 

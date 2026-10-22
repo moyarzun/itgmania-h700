@@ -1,8 +1,8 @@
 #!/bin/bash
-# PortMaster launcher for ITGmania on Allwinner H700 handhelds (muOS).
 # Source and build recipe: https://github.com/moyarzun/itgmania-h700 (h700/).
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+
 if [ -d "/opt/system/Tools/PortMaster/" ]; then
   controlfolder="/opt/system/Tools/PortMaster"
 elif [ -d "/opt/tools/PortMaster/" ]; then
@@ -17,114 +17,64 @@ source $controlfolder/control.txt
 [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"
 get_controls
 
-GAMEDIR=/$directory/ports/itgmania
-BINARY=itgmania
+GAMEDIR="/$directory/ports/itgmania"
 
 cd "$GAMEDIR"
-chmod +x "$GAMEDIR/$BINARY"
 
 > "$GAMEDIR/log.txt" && exec > >(tee "$GAMEDIR/log.txt") 2>&1
 
+if [ -f "${controlfolder}/libgl_${CFW_NAME}.txt" ]; then
+  source "${controlfolder}/libgl_${CFW_NAME}.txt"
+else
+  source "${controlfolder}/libgl_default.txt"
+fi
+
+if [ "$LIBGL_FB" != "" ] && [ "${CFW_NAME^^}" != "KNULLI" ]; then
+  export SDL_VIDEO_GL_DRIVER="$GAMEDIR/gl4es.${DEVICE_ARCH}/libGL.so.1"
+  export SDL_VIDEO_EGL_DRIVER="$GAMEDIR/gl4es.${DEVICE_ARCH}/libEGL.so.1"
+fi
+
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 
-# Graphics: this device has no /dev/dri and no X11/Wayland, only the vendor
-# "mali" fbdev+EGL+GLESv2 blob. The engine draws desktop OpenGL through the
-# gl4es libGL.so.1/libEGL.so.1 pair shipped in lib/, inside a window created
-# by the system SDL2's "mali" video driver.
-export LD_LIBRARY_PATH="$GAMEDIR/lib:$LD_LIBRARY_PATH"
-export SDL_VIDEO_GL_DRIVER="$GAMEDIR/lib/libGL.so.1"
-export SDL_VIDEO_EGL_DRIVER="$GAMEDIR/lib/libEGL.so.1"
-export LIBGL_ES=2
-export LIBGL_GL=21
-export LIBGL_FB=2
+$ESUDO chmod +x "$GAMEDIR/itgmania"
 
-# ALSA on this device routes "default" through PipeWire (/etc/asound.conf),
-# whose socket lives at /run/pipewire-0, not the standard
-# $XDG_RUNTIME_DIR/pipewire-0 path (there is no /run/user/<uid> at all).
-export XDG_RUNTIME_DIR=/run
-export PIPEWIRE_RUNTIME_DIR=/run
+# Settings, profiles and scores live in ~/.itgmania; keep them in the port.
+mkdir -p "$GAMEDIR/conf/.itgmania/Save"
+[ -f "$GAMEDIR/conf/.itgmania/Save/Preferences.ini" ] || cp "$GAMEDIR/defaults/Preferences.ini" "$GAMEDIR/conf/.itgmania/Save/"
+[ -f "$GAMEDIR/conf/.itgmania/Save/Keymaps.ini" ] || cp "$GAMEDIR/defaults/Keymaps.ini" "$GAMEDIR/conf/.itgmania/Save/"
+bind_directories ~/.itgmania "$GAMEDIR/conf/.itgmania"
 
-# Save data lives in ~/.itgmania. On first run (or after a firmware
-# reinstall wiped it) seed the settings this device needs: the built-in
-# controls (muOS-Keys is DEVICE_JOY10 to the engine), a 16:9 720x405 render
-# letterboxed in the 720x480 panel, no joystick auto-mapping, a
-# line-by-line log for the loading screen, smaller image/movie textures
-# (1 GB of RAM, no swap: 1080p backgrounds got the game OOM-killed) and a
-# larger audio buffer than the 512-frame Linux default (it underran through
-# PipeWire's ALSA plugin). Existing values are left alone.
-SAVEDIR="$HOME/.itgmania/Save"
-mkdir -p "$SAVEDIR"
-if ! grep -q "Joy10_" "$SAVEDIR/Keymaps.ini" 2>/dev/null; then
-  cp "$GAMEDIR/defaults/Keymaps.ini" "$SAVEDIR/Keymaps.ini"
+# The theme is laid out for 16:9: render the largest 16:9 area that fits the
+# screen (black bars fill the rest).
+if [ $((DISPLAY_WIDTH * 9)) -le $((DISPLAY_HEIGHT * 16)) ]; then
+  W=$DISPLAY_WIDTH; H=$((DISPLAY_WIDTH * 9 / 16))
+else
+  W=$((DISPLAY_HEIGHT * 16 / 9)); H=$DISPLAY_HEIGHT
 fi
-if [ ! -s "$SAVEDIR/Preferences.ini" ]; then
-  cp "$GAMEDIR/defaults/Preferences.ini" "$SAVEDIR/Preferences.ini"
-fi
+sed -i "s/^DisplayWidth=[0-9]*/DisplayWidth=$W/; s/^DisplayHeight=[0-9]*/DisplayHeight=$H/; s/^DisplayAspectRatio=[0-9.]*/DisplayAspectRatio=1.777778/" "$GAMEDIR/conf/.itgmania/Save/Preferences.ini"
 
-# This board has a hall-effect lid switch that can spuriously read "closed"
-# mid-session and suspend the system regardless of what's running. Force it
-# to read "open" for the session and restore it on exit.
-HALLKEY_PATH="/sys/class/power_supply/axp2202-battery/hallkey"
-HALLKEY_OVERRIDE=""
-if [ -e "$HALLKEY_PATH" ] && ! mountpoint -q "$HALLKEY_PATH"; then
-  HALLKEY_OVERRIDE="$(mktemp)"
-  echo 1 > "$HALLKEY_OVERRIDE"
-  if mount --bind "$HALLKEY_OVERRIDE" "$HALLKEY_PATH" 2>&1; then
-    echo "Overrode hallkey (lid switch) to always report open"
-  else
-    echo "Could not override hallkey; lid-triggered suspend may still fire"
-    rm -f "$HALLKEY_OVERRIDE"
-    HALLKEY_OVERRIDE=""
-  fi
-fi
+# controls.gptk only drives ScreenMapControllers and the exit hotkey; gameplay
+# reads the gamepad through Keymaps.ini.
+$GPTOKEYB2 "itgmania" -c "./controls.gptk" &
+pm_platform_helper "$GAMEDIR/itgmania"
 
-# The CPU governor defaults to "powersave", which pins every core at its
-# minimum frequency (480MHz of a possible 1512MHz) instead of scaling with
-# load -- a much bigger framerate cost than anything in the engine. Force
-# "performance" for the session and restore the previous governors on exit.
-GOVERNOR_PATHS=(/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor)
-ORIGINAL_GOVERNORS=()
-if [ -e "${GOVERNOR_PATHS[0]}" ]; then
-  for g in "${GOVERNOR_PATHS[@]}"; do
-    ORIGINAL_GOVERNORS+=("$(cat "$g" 2>/dev/null)")
-    echo performance > "$g" 2>/dev/null
-  done
-fi
-
-# Gameplay and menus are driven by Keymaps.ini's joystick bindings, not by
-# these keys. controls.gptk only exists so ScreenMapControllers (whose cursor
-# navigation is hardcoded to the keyboard device) stays usable, and so the
-# hotkey can kill the game: gptokeyb2 matches the process name exactly, so it
-# must be "itgmania" ($BINARY), not "ITGMania".
-$GPTOKEYB2 "$BINARY" -c "./controls.gptk" &
-
-pm_platform_helper "$GAMEDIR/$BINARY"
-
-# Loading screen: the engine loads/caches every song before it opens its
-# window (no LoadingWindow without X11), so startup is otherwise a black
-# screen -- minutes long after adding packs. Draws to /dev/fb0 and exits on
-# its own once the engine shows its first screen.
-# See loading_splash/README.md.
-# The splash follows log.txt to know when the engine shows its first screen;
-# that only works if the engine writes it line by line.
-sed -i "s/^ForceLogFlush=0/ForceLogFlush=1/" "$SAVEDIR/Preferences.ini" 2>/dev/null
-
-python3 "$GAMEDIR/loading_splash/loading_splash.py" &
-
-./$BINARY
-echo "ITGmania exited with code $?"
-
-if [ -n "$HALLKEY_OVERRIDE" ]; then
-  while mountpoint -q "$HALLKEY_PATH"; do
-    umount -l "$HALLKEY_PATH" 2>/dev/null && echo "Unmounted hallkey override" || break
-  done
-  rm -f "$HALLKEY_OVERRIDE"
-fi
-
-if [ "${#ORIGINAL_GOVERNORS[@]}" -gt 0 ]; then
-  for i in "${!GOVERNOR_PATHS[@]}"; do
-    [ -n "${ORIGINAL_GOVERNORS[$i]}" ] && echo "${ORIGINAL_GOVERNORS[$i]}" > "${GOVERNOR_PATHS[$i]}" 2>/dev/null
-  done
-fi
+# Songs load before the game opens its window: show a progress bar from its log
+# ("Loading all N songs", then a "Loading /Songs/..." line per song) until it
+# starts video ("Video renderers").
+LOG="$GAMEDIR/conf/.itgmania/Logs/log.txt"
+rm -f "$LOG"
+./itgmania &
+GAME_PID=$!
+PortMasterDialogInit "no-harbour"
+PortMasterDialog "messages_begin"
+while kill -0 $GAME_PID 2>/dev/null && ! grep -q "Video renderers" "$LOG" 2>/dev/null; do
+  TOTAL=$(sed -n 's/.*Loading all \([0-9]*\) songs.*/\1/p' "$LOG" 2>/dev/null)
+  LOADED=$(grep -c ": Loading /Songs/" "$LOG" 2>/dev/null)
+  PortMasterDialog "progress" "Loading songs" "${LOADED:-0}" "${TOTAL:-100}"
+  sleep 1
+done
+PortMasterDialog "progress_clear"
+PortMasterDialogExit
+wait $GAME_PID
 
 pm_finish

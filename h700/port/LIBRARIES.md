@@ -1,8 +1,9 @@
 # Bundled libraries
 
-Prebuilt aarch64 libraries in `h700/port/lib/`, shipped in the port's `lib/` folder. They are
-loaded through `LD_LIBRARY_PATH` / `SDL_VIDEO_GL_DRIVER` /
-`SDL_VIDEO_EGL_DRIVER` set by `ITGMania.sh`.
+Prebuilt aarch64 libraries in `h700/port/lib/`, shipped in the port's
+`gl4es.aarch64/` (gl4es) and `libs.aarch64/` (the rest) folders, which
+PortMaster's `libgl_*.txt` adds to `LD_LIBRARY_PATH`; `ITGMania.sh` points
+`SDL_VIDEO_GL_DRIVER` / `SDL_VIDEO_EGL_DRIVER` at gl4es.
 
 | File | Project | Version | Taken from | License |
 |---|---|---|---|---|

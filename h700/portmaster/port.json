@@ -11,10 +11,10 @@
     "porter": [
       "moyarzun"
     ],
-    "desc": "ITGmania is a fork of StepMania 5.1, the open-source rhythm game, focused on In The Groove-style play with the Simply Love theme. This port adapts the engine, the theme and the controls to the H700's 720x480 screen and built-in buttons.",
+    "desc": "ITGmania is a fork of StepMania 5.1, the open-source rhythm game, focused on In The Groove-style play with the Simply Love theme. This port adapts the engine, the theme and the controls to handheld screens (16:9, letterboxed on taller ones) and built-in buttons.",
     "desc_md": null,
-    "inst": "Ready to run with the three songs ITGmania ships. Add song packs (a folder of song folders) to ports/itgmania/Songs/. The first start after adding packs processes them and can take a few minutes (about 90 seconds for 1,700 songs); a loading screen shows the progress. Currently supports Allwinner H700 devices running muOS only (it uses muOS's Mali fbdev SDL2 driver).",
-    "inst_md": "- Ready to run with the three songs ITGmania ships.\n- Add song packs (a folder of song folders) to `ports/itgmania/Songs/`.\n- The first start after adding packs processes them and can take a few minutes (about 90 seconds for 1,700 songs); a loading screen shows the progress.\n- Currently supports **Allwinner H700 devices running muOS** only (it uses muOS's Mali fbdev SDL2 driver).",
+    "inst": "Ready to run with the three songs ITGmania ships. Add song packs (a folder of song folders) to ports/itgmania/Songs/. The first start after adding packs processes them and can take a few minutes (about 90 seconds for 1,700 songs). Currently supports Allwinner H700 devices running muOS only (it uses muOS's Mali fbdev SDL2 driver).",
+    "inst_md": "- Ready to run with the three songs ITGmania ships.\n- Add song packs (a folder of song folders) to `ports/itgmania/Songs/`.\n- The first start after adding packs processes them and can take a few minutes (about 90 seconds for 1,700 songs).\n- Currently supports **Allwinner H700 devices running muOS** only (it uses muOS's Mali fbdev SDL2 driver).",
     "genres": [
       "rhythm"
     ],
