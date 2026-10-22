@@ -461,56 +461,37 @@ void ScreenManager::Update(float fDeltaTime) {
 
   Screen* pScreen = g_ScreenStack.empty() ? nullptr : GetTopScreen();
 
-  // This port's A/B face buttons (muOS-Keys, DEVICE_JOY10, raw South/East
-  // buttons -- JOY_BUTTON_1/2 on ITGmania; JOY_BUTTON_17/18 on the older
-  // stepmania_port fork this was ported from, since ITGmania's
-  // InputHandler_Linux_Event.cpp added a BTN_GAMEPAD-range fast path that
-  // intercepts standard Linux gamepad codes (0x130-0x13f, which is what
-  // muOS-Keys reports) before they fall through to the older "wrap(raw
-  // code, 32)" path the numbers 17/18 came from -- see the Keymaps.ini fix
-  // from the same investigation) do double duty: Select/Back on every menu
-  // screen, but dance-panel Down/Right steps during actual gameplay.
-  // StepMania's Keymaps.ini/GameButton mapping is static and has no notion
-  // of "which screen is active" -- a raw button maps to exactly one
-  // GameButton, globally -- so there's no config-only way to make the same
-  // two buttons mean different things depending on context. Checking the
-  // active screen's declared GetScreenType() here and re-pointing just
-  // these two DeviceInputs' slot-1 mapping is robust to *how* gameplay was
-  // entered/exited (retry, give-up, crash-recovery, normal completion,
-  // etc, all covered by every ScreenGameplay-derived screen returning
-  // `gameplay` from GetScreenType()) since it's a continuous state
-  // comparison rather than a one-shot transition hook that could be missed
-  // on some exit path. Keymaps.ini's own on-disk slot 1 for these two
-  // buttons is the menu (Start/Back) role, matching whatever the game
-  // boots into; this only overrides it while gameplay is on top. Ported
-  // verbatim from the main stepmania_port fork's identical fix.
+  // The built-in pad's east and south face buttons (InputHandler_SDL's Joy1;
+  // SDL buttons are positional: JOY_BUTTON_1 south, _2 east, _3 west, _4
+  // north) are confirm/back in menus -- east confirms, as on muOS and other
+  // Nintendo-style handhelds -- but dance-panel steps in gameplay, where the
+  // face buttons are a second set of arrows by position: east Right, south
+  // Down (north Up and west Left are fixed in Keymaps.ini). A raw button maps
+  // to one GameButton globally, so re-point these two slot-1 mappings
+  // whenever a gameplay screen comes or goes. Keymaps.ini holds the menu
+  // role, which is what the game boots into.
   {
     static bool s_bWasGameplay = false;
     bool bIsGameplayNow = pScreen && pScreen->GetScreenType() == gameplay;
     if (bIsGameplayNow != s_bWasGameplay) {
       s_bWasGameplay = bIsGameplayNow;
       const InputScheme* pScheme = INPUTMAPPER->GetInputScheme();
-      DeviceInput diSouth(DEVICE_JOY10, JOY_BUTTON_1);
-      DeviceInput diEast(DEVICE_JOY10, JOY_BUTTON_2);
+      DeviceInput diEast(DEVICE_JOY1, JOY_BUTTON_2);
+      DeviceInput diSouth(DEVICE_JOY1, JOY_BUTTON_1);
       if (bIsGameplayNow) {
-        // Confirmed against real hardware testing on the main
-        // stepmania_port fork: South(A)/East(B) are swapped relative to
-        // pure compass position -- South(A)=Right and East(B)=Down, not
-        // South=Down/East=Right (North(X)=Up and West(Y)=Left were
-        // confirmed correct as plain compass positions).
-        GameButton gbDown = StringToGameButton(pScheme, "Down");
         GameButton gbRight = StringToGameButton(pScheme, "Right");
+        GameButton gbDown = StringToGameButton(pScheme, "Down");
         if (gbRight != GameButton_Invalid)
           INPUTMAPPER->SetInputMap(
-              diSouth, GameInput(GameController_1, gbRight), 1);
+              diEast, GameInput(GameController_1, gbRight), 1);
         if (gbDown != GameButton_Invalid)
           INPUTMAPPER->SetInputMap(
-              diEast, GameInput(GameController_1, gbDown), 1);
+              diSouth, GameInput(GameController_1, gbDown), 1);
       } else {
         INPUTMAPPER->SetInputMap(
-            diSouth, GameInput(GameController_1, GAME_BUTTON_START), 1);
+            diEast, GameInput(GameController_1, GAME_BUTTON_START), 1);
         INPUTMAPPER->SetInputMap(
-            diEast, GameInput(GameController_1, GAME_BUTTON_BACK), 1);
+            diSouth, GameInput(GameController_1, GAME_BUTTON_BACK), 1);
       }
     }
   }

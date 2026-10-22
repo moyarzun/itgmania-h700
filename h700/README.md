@@ -18,9 +18,14 @@ Engine (commits on top of `v1.3.0`, see `git log v1.3.0..h700`):
   forwarding to sub-builds, link order).
 - **GLSL shader effects skipped** on this backend (gl4es crashes linking them
   on the Mali-G31 driver; they are optional effects).
-- **Input**: ignore muOS's virtual "Mouse" evdev device, no automatic keyboard
-  mappings (one press must reach the engine once), context-sensitive A/B, a
-  protected built-in controls slot in the key-mapping screen.
+- **Input**: an SDL game-controller input handler
+  (`src/arch/InputHandler/InputHandler_SDL.*`) reads the built-in pad through
+  the per-device `SDL_GAMECONTROLLERCONFIG` mapping PortMaster supplies, so
+  `Keymaps.ini` names the same buttons (`Joy1_B1`...) on every device; it polls
+  at 1 ms and timestamps each press. Also: ignore muOS's virtual "Mouse" evdev
+  device, no automatic keyboard mappings (one press must reach the engine
+  once), face buttons that confirm/go back in menus and are arrows in
+  gameplay, a protected built-in controls slot in the key-mapping screen.
 - **Bug fixes**: ALSA position during XRUN, Course/Nonstop-mode iterator
   crash, a profile leak, movie banners showing their first frame when banner
   animation is off, missing on-screen keyboard assets in `_fallback`.

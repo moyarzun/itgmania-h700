@@ -20,13 +20,15 @@ Songs: *Goin' Under* by NegaRen (chart by Fraxtil), *Mecha-Tribe Assault* and
 
 ## Controls
 
-| Button | Action |
-|--|--|
-| D-pad | Arrows / move in menus |
-| A, Start | Confirm / Start |
-| B, Select | Back |
-| X | Up arrow |
-| Y | Left arrow |
+Face buttons are named by position, since labels differ between devices.
+
+| Button | Menus | Gameplay |
+|--|--|--|
+| D-pad | Move | Arrows |
+| Right face button, Start | Confirm | Right arrow (face button) |
+| Bottom face button, Select | Back | Down arrow (face button) |
+| Top face button | | Up arrow |
+| Left face button | | Left arrow |
 
 Key mappings can be changed in Options > Config Key/Joy Mappings. The first
 column is reserved for the built-in controls; use the second to add another

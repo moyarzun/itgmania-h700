@@ -307,6 +307,10 @@ else() # Unix/Linux
                 "arch/InputHandler/InputHandler_Linux_PIUIO.h"
                 "arch/InputHandler/InputHandler_SextetStream.h")
   endif()
+  if(HAS_SDL2)
+    list(APPEND SMDATA_ARCH_INPUT_SRC "arch/InputHandler/InputHandler_SDL.cpp")
+    list(APPEND SMDATA_ARCH_INPUT_HPP "arch/InputHandler/InputHandler_SDL.h")
+  endif()
   if(X11_FOUND)
     list(APPEND SMDATA_ARCH_INPUT_SRC "arch/InputHandler/InputHandler_X11.cpp")
     list(APPEND SMDATA_ARCH_INPUT_HPP "arch/InputHandler/InputHandler_X11.h")

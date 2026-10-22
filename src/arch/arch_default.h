@@ -66,9 +66,12 @@ inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 #endif
 
 #if defined(LINUX)
+// SDL (when built) reads gamepads through their SDL_GAMECONTROLLERCONFIG
+// mapping, the same buttons on every device; LinuxEvent still provides
+// keyboards and pads without a mapping, such as dance mats.
 inline const std::vector<std::string>& GetDefaultInputDriverList() {
   static const std::vector<std::string> inputDriverList = {
-      "X11", "LinuxEvent", "LinuxJoystick"};
+      "X11", "SDL", "LinuxEvent", "LinuxJoystick"};
   return inputDriverList;
 }
 #else
