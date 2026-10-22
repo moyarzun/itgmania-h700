@@ -466,10 +466,15 @@ int MovieDecoder_FFMpeg::GetFrame(RageSurface* surface_out) {
       (display_frame_num_ + offset_) % frame_buffer_.size();
   std::lock_guard<std::mutex> lock(
       frame_buffer_[display_frame_in_buffer]->lock);
-  int scale_status = 0;
+  // sws_scale returns the output height, or 0 on error; anything <= 0 makes
+  // the caller skip this frame instead of uploading an unwritten surface.
+  int scale_status = -1;
 
-  // Sanity check.
-  if (frame_buffer_[display_frame_in_buffer]->packet_num ==
+  // Sanity check. The decoder holds back its first pictures (EAGAIN), so the
+  // first frame slots can be marked decoded without any picture in them.
+  if (frame_buffer_[display_frame_in_buffer]->frame->data[0] == nullptr) {
+    // Nothing to convert; skip it.
+  } else if (frame_buffer_[display_frame_in_buffer]->packet_num ==
       display_frame_num_) {
     scale_status = avcodec::sws_scale(
         av_sws_context_, frame_buffer_[display_frame_in_buffer]->frame->data,
@@ -485,6 +490,10 @@ int MovieDecoder_FFMpeg::GetFrame(RageSurface* surface_out) {
   // Even if scale_status returns a failure, we mark displayed as true. The
   // frame won't be displayed, but instead skipped over.
   frame_buffer_[display_frame_in_buffer]->displayed = true;
+
+  if (scale_status <= 0) {
+    scale_status = -1;
+  }
 
   if (LastFrame()) {
     end_of_movie_ = true;
