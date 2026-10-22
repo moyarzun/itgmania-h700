@@ -2860,10 +2860,10 @@ index 0000000..46ebef8
 +end
 diff --git a/Scripts/SL-DeviceOptions.lua b/Scripts/SL-DeviceOptions.lua
 new file mode 100644
-index 0000000..87e25e1
+index 0000000..325f23d
 --- /dev/null
 +++ b/Scripts/SL-DeviceOptions.lua
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,37 @@
 +-- device port: an operator-menu row for the engine's SongBackgrounds
 +-- preference, which no stock screen exposes. Off shows each song's still
 +-- background image instead of its videos and BGCHANGES, which also saves
@@ -2887,8 +2887,22 @@ index 0000000..87e25e1
 +		end,
 +	}
 +end
++
++-- device port: Animate Song Banners off applies to every banner the theme
++-- loads (evaluation, summary, name entry...), not just the gameplay one. The
++-- engine starts decoding a movie on every load; the banner still shows the
++-- movie's first frame. The song wheel's banner is loaded by the engine; see
++-- "ScreenSelectMusic overlay/banner.lua".
++for _, method in ipairs({ "LoadFromSong", "LoadFromCourse" }) do
++	local load = Banner[method]
++	Banner[method] = function(self, ...)
++		load(self, ...)
++		if not ThemePrefs.Get("AnimateBanners") then self:SetDecodeMovie(false) end
++		return self
++	end
++end
 diff --git a/metrics.ini b/metrics.ini
-index 2dbe13e..d909b8a 100644
+index 2dbe13e..e9cad7f 100644
 --- a/metrics.ini
 +++ b/metrics.ini
 @@ -100,16 +100,20 @@ PrevScreen="ScreenInit"
@@ -3329,3 +3343,14 @@ index 2dbe13e..d909b8a 100644
  
  # Okay
  Answer1Of1OnCommand=zoom,0.7
+@@ -1901,6 +1990,10 @@ Fallback="GraphDisplay"
+ 
+ [ScreenEvaluation]
+ TimerSeconds=SL.Global.MenuTimer.ScreenEvaluation
++# device port: the engine's own (hidden) LargeBanner/SmallBanners share their
++# movie textures with the theme's banners and kept them animating whatever
++# AnimateBanners says; the theme draws its own, so don't load them.
++ShowBannerArea=false
+ ShowHeader=true
+ FooterOnCommand=visible,false
+ ShowCreditDisplay=false
