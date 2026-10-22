@@ -1,6 +1,6 @@
 #!/bin/bash
 # PortMaster launcher for ITGmania on Allwinner H700 handhelds (muOS).
-# Source and build recipe: https://github.com/<owner>/itgmania-h700 (h700/).
+# Source and build recipe: https://github.com/moyarzun/itgmania-h700 (h700/).
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 if [ -d "/opt/system/Tools/PortMaster/" ]; then
