@@ -1,7 +1,7 @@
 #!/bin/bash
 # Cross-compile ITGmania for Allwinner H700 handhelds running muOS (aarch64).
 #
-# Everything runs in throwaway debian:12-slim containers (amd64, so the cross
+# Everything runs in throwaway debian:11-slim containers (amd64, so the cross
 # compiler runs at native speed), so the host only needs podman (or docker:
 # CONTAINER=docker ./h700/build.sh).
 #
@@ -18,7 +18,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 H700="$ROOT/h700"
 BUILD="${BUILD_DIR:-$ROOT/build-h700}"
 CONTAINER="${CONTAINER:-podman}"
-IMAGE="docker.io/library/debian:12-slim"
+# Debian 11 = glibc 2.31 / GCC 10 (GLIBCXX_3.4.28): old enough for every CFW
+# PortMaster targets. It is end-of-life, so packages come from the frozen
+# archive.debian.org; CMake >= 3.20 comes from bullseye-backports.
+IMAGE="docker.io/library/debian:11-slim"
 JOBS="${JOBS:-$(nproc)}"
 
 if [ ! -d "$H700/cross/sysroot-aarch64/usr" ]; then
@@ -39,8 +42,11 @@ echo "=== building in $BUILD ==="
   "$IMAGE" bash -c '
     set -e
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-    apt-get install -y -qq crossbuild-essential-arm64 cmake nasm yasm git pkg-config >/dev/null
+    sed -i "s#deb.debian.org#archive.debian.org#" /etc/apt/sources.list
+    echo "deb http://archive.debian.org/debian bullseye-backports main" > /etc/apt/sources.list.d/backports.list
+    apt-get update -qq -o Acquire::Check-Valid-Until=false
+    apt-get install -y -qq crossbuild-essential-arm64 nasm yasm git pkg-config >/dev/null
+    apt-get install -y -qq -t bullseye-backports cmake >/dev/null
     cd /build
     # No X11/GTK/PulseAudio/JACK on muOS; the window comes from SDL2 (mali)
     # and audio from ALSA. The crash handler crashes itself on this hardware.

@@ -1,13 +1,15 @@
 #!/bin/bash
-# Runs INSIDE the debian:12-slim (amd64) container, with the host's
+# Runs INSIDE the debian:11-slim (amd64) container, with the host's
 # cross/sysroot-aarch64 mounted at /sysroot. Populates /sysroot with exactly
 # the files owned by the :arm64 dev packages needed to cross-compile ITGmania,
 # using dpkg -L per package (never a blanket cp of /usr/include,
 # which also holds host amd64 headers on a multiarch system).
 set -e
 
+# Debian 11 is end-of-life: its packages live on the frozen archive.
+sed -i "s#deb.debian.org#archive.debian.org#" /etc/apt/sources.list
 dpkg --add-architecture arm64
-apt-get update -qq
+apt-get update -qq -o Acquire::Check-Valid-Until=false
 apt-get install -y -qq crossbuild-essential-arm64 \
   zlib1g-dev:arm64 libjpeg62-turbo-dev:arm64 libpng-dev:arm64 libpcre2-dev:arm64 \
   libgles2-mesa-dev:arm64 libegl1-mesa-dev:arm64 \
@@ -16,9 +18,8 @@ apt-get install -y -qq crossbuild-essential-arm64 \
   libudev-dev:arm64 libglu1-mesa-dev:arm64 \
   libsdl2-dev:arm64 >/dev/null
 # libsdl2-dev only provides headers + the CMake package to build against: at
-# runtime the engine loads the device's own libSDL2-2.0.so.0 (muOS ships
-# 2.28.x with the "mali" video driver), which is newer than Debian 12's
-# 2.26.x, so the ABI requirement is satisfied.
+# runtime the engine loads the CFW's own libSDL2-2.0.so.0, which is newer than
+# Debian 11's 2.0.14, so the ABI requirement is satisfied.
 
 echo "=== arm64 + arch-independent packages installed ==="
 # Header-only dependencies (e.g. x11proto-dev, pulled in by libx11-dev) are
@@ -29,10 +30,9 @@ echo "=== arm64 + arch-independent packages installed ==="
 dpkg-query -W -f='${Package} ${Architecture}\n' | grep -E ' (arm64|all)$' | sort | tee /tmp/pkglist.txt
 
 echo "=== copying owned files into /sysroot ==="
-# Debian 12 is usr-merged: /lib, /bin and /sbin are symlinks into /usr and
-# are listed as owned files. Recreate that layout up front (copying the
-# symlinks first would leave them dangling and break every later mkdir -p
-# under them), and never copy over a path that already exists as a link.
+# Lay the sysroot out usr-merged (/lib, /bin and /sbin as symlinks into /usr)
+# so files listed under either path land in one place, and never copy over a
+# path that already exists as a link.
 for d in lib bin sbin; do
   mkdir -p "/sysroot/usr/$d"
   [ -e "/sysroot/$d" ] || ln -s "usr/$d" "/sysroot/$d"
@@ -46,6 +46,17 @@ while read -r pkg arch; do
     fi
   done
 done < /tmp/pkglist.txt
+
+# Debian 11's -dev symlinks are absolute (libz.so -> /lib/.../libz.so.1),
+# which would point at the build container's own (amd64 or missing) files.
+find /sysroot -type l -lname '/*' | while read -r l; do
+  ln -sfn "$(realpath -m --relative-to="$(dirname "$l")" "/sysroot$(readlink "$l")")" "$l"
+done
+
+# SDL 2.0.14's CMake package hardcodes prefix /usr (the build host's own);
+# make it relative to the file so it resolves inside the sysroot.
+sed -i 's#^set(prefix "/usr")#set(prefix "${CMAKE_CURRENT_LIST_DIR}/../../../..")#' \
+  /sysroot/usr/lib/aarch64-linux-gnu/cmake/SDL2/sdl2-config.cmake
 
 echo "=== sysroot size ==="
 du -sh /sysroot

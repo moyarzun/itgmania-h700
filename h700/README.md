@@ -48,9 +48,10 @@ cd itgmania-h700
 ./h700/package.sh    # -> h700/dist/itgmania.zip
 ```
 
-`build.sh` first populates `h700/cross/sysroot-aarch64/` with Debian 12
-`:arm64` development packages (`h700/cross/setup-sysroot.sh`), then configures
-the engine with `h700/cross/toolchain-aarch64.cmake` and these options:
+`build.sh` first populates `h700/cross/sysroot-aarch64/` with Debian 11
+`:arm64` development packages (`h700/cross/setup-sysroot.sh`; Debian 11 keeps
+the binary at glibc 2.30 / GLIBCXX_3.4.26, old enough for older CFWs), then
+configures the engine with `h700/cross/toolchain-aarch64.cmake` and these options:
 
 ```
 -DCMAKE_BUILD_TYPE=Release -DWITH_X11=OFF -DWITH_XRANDR=OFF -DWITH_LIBXTST=OFF
