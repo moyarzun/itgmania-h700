@@ -2809,6 +2809,20 @@ index 9bb7e20..8fbb5c3 100755
  # _fallback specific items
  Overscan Correction=Si alguna parte de la pantalla se corta, usa esto.
  Set BG Fit Mode=Ajusta como StepMania mostrará los fondos durante el juego.
+diff --git a/Scripts/99 SL-ThemePrefs.lua b/Scripts/99 SL-ThemePrefs.lua
+index a14de6d..574584a 100644
+--- a/Scripts/99 SL-ThemePrefs.lua	
++++ b/Scripts/99 SL-ThemePrefs.lua	
+@@ -158,7 +158,8 @@ SL_CustomPrefs.Get = function()
+ 		},
+ 		AnimateBanners =
+ 		{
+-			Default = true,
++			-- device port: off by default; decoding movie banners costs CPU on handhelds
++			Default = false,
+ 			Choices = { THEME:GetString("ThemePrefs", "On"), THEME:GetString("ThemePrefs", "Off") },
+ 			Values  = { true, false }
+ 		},
 diff --git a/Scripts/SL-DeviceLayout.lua b/Scripts/SL-DeviceLayout.lua
 new file mode 100644
 index 0000000..46ebef8
