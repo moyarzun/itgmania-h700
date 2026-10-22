@@ -12,6 +12,11 @@ are fast. Settings, scores and profiles are stored in `ports/itgmania/conf/`.
 
 GrooveStats score submission is disabled in this port.
 
+On muOS, set this port's governor to **performance** (content options) if
+gameplay drops frames: muOS then also runs the GPU at full clock, which it
+otherwise leaves at its minimum. Settings > Advanced > Max GPU does the same
+for everything.
+
 Thanks to the [ITGmania](https://github.com/itgmania/itgmania) team, the
 [Simply Love](https://github.com/Simply-Love/Simply-Love-SM5) theme authors,
 the StepMania developers, and ptitSeb for [gl4es](https://github.com/ptitSeb/gl4es).
