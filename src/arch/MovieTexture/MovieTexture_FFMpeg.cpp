@@ -1,5 +1,6 @@
 #include "MovieTexture_FFMpeg.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdarg>
@@ -617,6 +618,19 @@ std::string MovieDecoder_FFMpeg::Open(std::string file) {
     LOG->Trace(
         "Unable to estimate the total number of frames. Setting to 2000.");
     total_frames_ = 2000;
+  }
+
+  int frame_bytes = avcodec::av_image_get_buffer_size(
+      av_stream_codec_->pix_fmt, GetWidth(), GetHeight(), 1);
+  if (frame_bytes > 0) {
+    std::size_t budget_frames = std::max(
+        kMinFrameBufferFrames, kFrameBufferBudgetBytes / frame_bytes);
+    if (budget_frames < frame_buffer_.size()) {
+      LOG->Trace(
+          "Large video frames (%d bytes), buffering %zu of them.", frame_bytes,
+          budget_frames);
+      frame_buffer_.resize(budget_frames);
+    }
   }
 
   if (total_frames_ < frame_buffer_.size()) {

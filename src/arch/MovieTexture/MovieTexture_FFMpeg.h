@@ -15,12 +15,17 @@ namespace avcodec {
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 }
 };  // namespace avcodec
 
 constexpr size_t kFFMpegBufferSize = 4096;
+// Memory budget for a movie's decoded-frame buffer (frame_buffer_), which
+// holds frames at full source size: 50 1080p frames would take ~155 MB.
+constexpr size_t kFrameBufferBudgetBytes = 32 * 1024 * 1024;
+constexpr size_t kMinFrameBufferFrames = 4;
 constexpr int kSwsFlags = SWS_BICUBIC;  // XXX: Reasonable default?
 
 struct FrameHolder {
