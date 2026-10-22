@@ -497,7 +497,7 @@ index 660ce79..8b46fda 100644
  return t
 \ No newline at end of file
 diff --git a/BGAnimations/ScreenSelectMusic overlay/banner.lua b/BGAnimations/ScreenSelectMusic overlay/banner.lua
-index fdca113..b9bd42a 100644
+index fdca113..f85ec67 100644
 --- a/BGAnimations/ScreenSelectMusic overlay/banner.lua	
 +++ b/BGAnimations/ScreenSelectMusic overlay/banner.lua	
 @@ -6,8 +6,10 @@ local bannerHeight = 164
@@ -513,6 +513,31 @@ index fdca113..b9bd42a 100644
  		else
  			self:zoom(0.75)
  			self:xy(_screen.cx - 166, 96)
+@@ -45,6 +47,24 @@ if PREFSMAN:GetPreference("ShowBanners") then
+ 			self:SetTarget(banner)
+ 		end
+ 	}
++
++	-- device port: the engine's FadingBanner turns movie decoding back on for
++	-- every banner it loads, so with AnimateBanners off keep turning it off
++	-- (the banner still shows the movie's first frame)
++	if not ThemePrefs.Get("AnimateBanners") then
++		t[#t+1] = Def.ActorFrame{
++			BeginCommand=function(self)
++				local banner = SCREENMAN:GetTopScreen():GetChild('Banner')
++				self:SetUpdateFunction(function()
++					banner:RunCommandsOnChildren(function(child)
++						if child.GetDecodeMovie and child:GetDecodeMovie() then
++							child:SetDecodeMovie(false)
++						end
++					end)
++				end)
++			end
++		}
++	end
+ end
+ 
+ -- the MusicRate Quad and text
 diff --git a/BGAnimations/ScreenSelectMusic overlay/default.lua b/BGAnimations/ScreenSelectMusic overlay/default.lua
 index 8f2a046..b67315a 100755
 --- a/BGAnimations/ScreenSelectMusic overlay/default.lua	
@@ -2693,7 +2718,7 @@ index f67ea70..3a9b213 100755
  	OffCommand=function(self)
  		-- if the first TitleMenu choice (Gameplay) was chosen by the player
 diff --git a/Languages/en.ini b/Languages/en.ini
-index 6c1b584..978a608 100644
+index 6c1b584..c460318 100644
 --- a/Languages/en.ini
 +++ b/Languages/en.ini
 @@ -30,8 +30,9 @@ Bottom=to save scores and preferences.
@@ -2707,7 +2732,15 @@ index 6c1b584..978a608 100644
  Enter Unlock Code=Enter Unlock Code
  
  # stats for TitleMenu/TitleJoin like "249 songs in 13 groups, 6 courses"
-@@ -848,6 +849,10 @@ HideLightType=Hide Light Type
+@@ -683,6 +684,7 @@ NoRolls=Rolls to Holds
+ 48000 Hz=48000 Hz
+ 
+ [OptionTitles]
++SongBackgrounds=Song Background\nVideos
+ # Top-level Service menu items
+ SystemOptions=🤍  System Options
+ Key Joy Mappings=🤍  Configure Keyboard/Pad Mappings
+@@ -848,6 +850,10 @@ HideLightType=Hide Light Type
  # ScreenPlayerOptions3
  RemoveA=Remove
  RemoveB=Remove
@@ -2718,7 +2751,15 @@ index 6c1b584..978a608 100644
  Holds=Notes → Holds
  ScreenAfterPlayerOptions3=What comes next?
  
-@@ -1064,6 +1069,10 @@ Persp=Change the notefield perspective.
+@@ -869,6 +875,7 @@ EnableOnlineLobbies=[BETA] Enable Online Lobbies
+ # now we get into the longer explanations of options
+ 
+ [OptionExplanations]
++SongBackgrounds=Show the videos and background changes songs come with during gameplay. Off shows each song's still background image instead, which uses less memory and CPU.
+ # Top-level Service menu items
+ SystemOptions=Adjust high-level settings like game type, theme, language, and more.
+ Key Joy Mappings=Map keyboard keys, panels, menu buttons, etc. to game functions.
+@@ -1064,6 +1071,10 @@ Persp=Change the notefield perspective.
  Remove=Remove notes [m].
  RemoveA=Remove notes [m].
  RemoveB=Remove notes [m].
@@ -2729,7 +2770,7 @@ index 6c1b584..978a608 100644
  DataVisualizations=Show the pacemaker graph or step statistics\non the side of the playfield.
  TargetScore=Choose the Target Score for your pacemaker.
  ActionOnMissedTarget=Choose the action that should be performed when your Target Score is no longer achievable.
-@@ -1258,13 +1267,14 @@ Surround=Surround
+@@ -1258,13 +1269,14 @@ Surround=Surround
  Vertical=Vertical
  
  # ScreenAfterPlayerOptions
@@ -2748,6 +2789,26 @@ index 6c1b584..978a608 100644
  
  
  ##############################################
+diff --git a/Languages/es.ini b/Languages/es.ini
+index 9bb7e20..8fbb5c3 100755
+--- a/Languages/es.ini
++++ b/Languages/es.ini
+@@ -622,6 +622,7 @@ NoRolls=Repeticiones a Sostenidas
+ 
+ 
+ [OptionTitles]
++SongBackgrounds=Videos de fondo\nde canciones
+ Default = Por defecto
+ 
+ # _fallback items
+@@ -790,6 +791,7 @@ AutoDownloadUnlocks=Auto-descargar\ndesbloqueos
+ SeparateUnlocksByPlayer=Desbloqueos separados\npor jugador
+ 
+ [OptionExplanations]
++SongBackgrounds=Muestra los videos y cambios de fondo que traen las canciones durante la partida. Desactivado muestra la imagen de fondo fija de cada canción, lo que usa menos memoria y CPU.
+ # _fallback specific items
+ Overscan Correction=Si alguna parte de la pantalla se corta, usa esto.
+ Set BG Fit Mode=Ajusta como StepMania mostrará los fondos durante el juego.
 diff --git a/Scripts/SL-DeviceLayout.lua b/Scripts/SL-DeviceLayout.lua
 new file mode 100644
 index 0000000..46ebef8
@@ -2797,8 +2858,37 @@ index 0000000..46ebef8
 +	local s = SL_DEVICE.StepStats
 +	return (sx - s.x) / s.zoom, (sy - s.y) / s.zoom
 +end
+diff --git a/Scripts/SL-DeviceOptions.lua b/Scripts/SL-DeviceOptions.lua
+new file mode 100644
+index 0000000..87e25e1
+--- /dev/null
++++ b/Scripts/SL-DeviceOptions.lua
+@@ -0,0 +1,23 @@
++-- device port: an operator-menu row for the engine's SongBackgrounds
++-- preference, which no stock screen exposes. Off shows each song's still
++-- background image instead of its videos and BGCHANGES, which also saves
++-- memory and CPU on handhelds.
++function SongBackgroundsRow()
++	return {
++		Name = "SongBackgrounds",
++		LayoutType = "ShowAllInRow",
++		SelectType = "SelectOne",
++		OneChoiceForAllPlayers = true,
++		ExportOnChange = false,
++		Choices = { THEME:GetString("ThemePrefs", "On"), THEME:GetString("ThemePrefs", "Off") },
++		LoadSelections = function(self, list, pn)
++			list[PREFSMAN:GetPreference("SongBackgrounds") and 1 or 2] = true
++		end,
++		SaveSelections = function(self, list, pn)
++			PREFSMAN:SetPreference("SongBackgrounds", list[1])
++			-- Lua rows don't mark preferences for saving; save now so a killed
++			-- session doesn't lose it
++			PREFSMAN:SavePreferences()
++		end,
++	}
++end
 diff --git a/metrics.ini b/metrics.ini
-index 2dbe13e..2c9468e 100644
+index 2dbe13e..d909b8a 100644
 --- a/metrics.ini
 +++ b/metrics.ini
 @@ -100,16 +100,20 @@ PrevScreen="ScreenInit"
@@ -2976,7 +3066,17 @@ index 2dbe13e..2c9468e 100644
  
  
  [OptionRowSimpleExit]
-@@ -504,8 +544,8 @@ FooterOnCommand=visible,false
+@@ -490,6 +530,9 @@ ItemOnCommand=visible,false
+ ###########################################################################
+ 
+ [ScreenOptionsServiceChild]
++# device port: B (Back) is the natural way out on a handheld; keep the
++# changes instead of silently discarding them.
++ExportOnBack=true
+ RepeatRate=30
+ RepeatDelay=0.333
+ StopMusicOnBack=false
+@@ -504,8 +547,8 @@ FooterOnCommand=visible,false
  Fallback="OptionRow"
  TitleX=WideScale(20, 40)
  FrameX=0
@@ -2987,7 +3087,7 @@ index 2dbe13e..2c9468e 100644
  ItemsLongRowSharedX=WideScale(210,285)
  # intentionally empty so it doesn't inherit from [OptionRow]
  FrameOnCommand=
-@@ -560,6 +600,24 @@ Effect,8="mod,tipsy;name,Tipsy"
+@@ -560,6 +603,24 @@ Effect,8="mod,tipsy;name,Tipsy"
  Effect,9="mod,bumpy;name,Bumpy"
  Effect,10="mod,beat;name,Beat"
  
@@ -3012,7 +3112,7 @@ index 2dbe13e..2c9468e 100644
  Appearance="5;selectmultiple"
  AppearanceDefault="mod,no hidden,no sudden,no stealth,no blink,no randomvanish"
  Appearance,1="mod,hidden;name,Hidden"
-@@ -601,6 +659,21 @@ Insert,6="mod,echo;name,Echo"
+@@ -601,6 +662,21 @@ Insert,6="mod,echo;name,Echo"
  Insert,7="mod,stomp;name,Stomp"
  Insert,8="mod,mines;name,Mines"
  
@@ -3034,7 +3134,7 @@ index 2dbe13e..2c9468e 100644
  Remove="8;selectmultiple"
  RemoveDefault="mod,no little,no nomines,no noholds,no nojumps,no nohands,no noquads,no nolifts,no nofakes"
  Remove,1="mod,little;name,Little"
-@@ -659,7 +732,11 @@ FooterOnCommand=visible,false
+@@ -659,7 +735,11 @@ FooterOnCommand=visible,false
  ShowCreditDisplay=false
  
  OptionRowExitMetricsGroup="OptionRowExit"
@@ -3047,7 +3147,7 @@ index 2dbe13e..2c9468e 100644
  
  RepeatRate=30
  AllowRepeatingChangeValueInput=true
-@@ -732,13 +809,13 @@ Line12="list,Effect"
+@@ -732,13 +812,13 @@ Line12="list,Effect"
  Line13="list,Appearance"
  
  ExplanationP1X=WideScale(26,39)
@@ -3065,7 +3165,7 @@ index 2dbe13e..2c9468e 100644
  ExplanationP2OffCommand=linear,0.2;diffusealpha,0
  
  
-@@ -776,8 +853,7 @@ OptionRowNormalMetricsGroup="OptionRowExtendedPlayerOptions"
+@@ -776,8 +856,7 @@ OptionRowNormalMetricsGroup="OptionRowExtendedPlayerOptions"
  
  # remove Characters if no dancing character directories were found
  LineNames=(function() \
@@ -3075,7 +3175,7 @@ index 2dbe13e..2c9468e 100644
  	if #CHARMAN:GetAllCharacters() < 1 then lines = lines:gsub("Characters,", "") end \
  	return lines \
  end)()
-@@ -789,6 +865,10 @@ LineInsert="list,Insert"
+@@ -789,6 +868,10 @@ LineInsert="list,Insert"
  LineRemove="list,Remove"
  LineRemoveA="list,RemoveA"
  LineRemoveB="list,RemoveB"
@@ -3086,7 +3186,7 @@ index 2dbe13e..2c9468e 100644
  LineHolds="list,Holds"
  LineAttacks="list,Attacks"
  LineCharacters="list,Characters"
-@@ -830,8 +910,8 @@ ContainerOffCommand=accelerate,0.3;diffusealpha,0
+@@ -830,8 +913,8 @@ ContainerOffCommand=accelerate,0.3;diffusealpha,0
  RowInitCommand=diffusealpha,0;
  RowOnCommand=linear,0.2;diffusealpha,1;draworder,-1
  RowOffCommand=linear,0.2;diffusealpha,0
@@ -3097,7 +3197,7 @@ index 2dbe13e..2c9468e 100644
  
  LineHighlightP1OnCommand=visible,false
  LineHighlightP2OnCommand=visible,false
-@@ -880,7 +960,7 @@ DisqualifyP2OnCommand=zoom,0.25;horizalign,left;diffuse,PlayerColor(PLAYER_2)
+@@ -880,7 +963,7 @@ DisqualifyP2OnCommand=zoom,0.25;horizalign,left;diffuse,PlayerColor(PLAYER_2)
  
  
  [ScreenOptionsSimple]
@@ -3106,7 +3206,7 @@ index 2dbe13e..2c9468e 100644
  StopMusicOnBack=false
  SeparateExitRow=false
  ExplanationTogetherX=_screen.cx-25
-@@ -910,7 +990,7 @@ FooterOnCommand=visible,false
+@@ -910,7 +993,7 @@ FooterOnCommand=visible,false
  # and redirect them to change their Visual Style or VideoRenderer, if needed.
  HandleBackButton=false
  
@@ -3115,7 +3215,7 @@ index 2dbe13e..2c9468e 100644
  
  # remove ClearCredits if we're not in CoinMode_Pay; it doesn't make sense to show for at-home players
  # note that (EventMode + CoinMode_Pay) will actually place you in CoinMode_Home
-@@ -918,7 +998,7 @@ NumRowsShown=10
+@@ -918,7 +1001,7 @@ NumRowsShown=10
  # remove CustomSongs if the corresponding preferences don't exist in Preferences.ini
  # CustomSongs wasn't added until 5.1 beta, but SL still supports 5.0.12 for now
  LineNames=(function() \
@@ -3124,7 +3224,7 @@ index 2dbe13e..2c9468e 100644
     if GAMESTATE:GetCoinMode() ~= "CoinMode_Pay" then lines = lines:gsub("ClearCredits,", "") end \
     if not PREFSMAN:PreferenceExists("CustomSongsEnable") then lines = lines:gsub("USBProfileOptions,", "") end \
     return lines \
-@@ -934,13 +1014,11 @@ LineBookkeeping="gamecommand;screen,ScreenBookkeeping;name,Bookkeeping"
+@@ -934,13 +1017,11 @@ LineBookkeeping="gamecommand;screen,ScreenBookkeeping;name,Bookkeeping"
  LineAdvancedOptions="gamecommand;screen,ScreenAdvancedOptions;name,AdvancedOptions"
  LineMenuTimerOptions="gamecommand;screen,ScreenMenuTimerOptions;name,MenuTimerOptions"
  LineUSBProfileOptions="gamecommand;screen,ScreenUSBProfileOptions;name,USBProfileOptions"
@@ -3138,7 +3238,21 @@ index 2dbe13e..2c9468e 100644
  
  ExplanationTogetherOnCommand=visible,false
  
-@@ -1303,6 +1381,10 @@ FooterOnCommand=visible,false
+@@ -1002,11 +1083,12 @@ LineCRT Test Patterns="gamecommand;screen,ScreenCRTTestPatterns;name,CRT Test Pa
+ PrevScreen="ScreenVisualOptions"
+ NextScreen="ScreenVisualOptions"
+ 
+-LineNames="Center1Player,ShowBanners,BGBrightness,RandomBackgroundMode,NumBackgrounds,ShowLyrics,ShowNativeLanguage,ShowDancingCharacters"
++LineNames="Center1Player,ShowBanners,BGBrightness,SongBackgrounds,RandomBackgroundMode,NumBackgrounds,ShowLyrics,ShowNativeLanguage,ShowDancingCharacters"
+ LineShowNativeLanguage="conf,ShowNativeLanguage"
+ LineShowLyrics="conf,ShowLyrics"
+ LineShowBanners="conf,ShowBanners"
+ LineBGBrightness="conf,BGBrightness"
++LineSongBackgrounds="lua,SongBackgroundsRow()"
+ LineRandomBackgroundMode="conf,RandomBackgroundMode"
+ LineNumBackgrounds="conf,NumBackgrounds"
+ LineCenter1Player="conf,Center1Player"
+@@ -1303,6 +1385,10 @@ FooterOnCommand=visible,false
  
  
  [ScreenOptionsManageProfiles]
@@ -3149,7 +3263,7 @@ index 2dbe13e..2c9468e 100644
  OptionRowNormalMetricsGroup="OptionRowManageLocalProfiles"
  OptionRowExitMetricsGroup="OptionRowManageLocalProfilesExit"
  ExplanationTogetherY=_screen.cy+180
-@@ -1569,13 +1651,13 @@ SectionExpandedSetCommand=%function(self) DiffuseEmojis(self) end
+@@ -1569,13 +1655,13 @@ SectionExpandedSetCommand=%function(self) DiffuseEmojis(self) end
  ParentCollapsedSetCommand=%function(self) DiffuseEmojis(self) end
  ParentExpandedSetCommand=%function(self) DiffuseEmojis(self) end
  
@@ -3168,7 +3282,7 @@ index 2dbe13e..2c9468e 100644
  
  SectionExpandedX=WideScale(35, 74)
  SectionCollapsedX=WideScale(35, 74)
-@@ -1588,9 +1670,9 @@ RouletteX=WideScale(150, 204)
+@@ -1588,9 +1674,9 @@ RouletteX=WideScale(150, 204)
  RandomX=WideScale(150, 204)
  PortalX=WideScale(150, 204)
  
@@ -3180,7 +3294,7 @@ index 2dbe13e..2c9468e 100644
  ChildSectionCountOnCommand=
  SectionCountSetCommand=%function(self) \
  	if ThemePrefs.Get("nice") > 0 and self:GetText()=="69" then \
-@@ -1611,8 +1693,8 @@ GradesShowMachine=false
+@@ -1611,8 +1697,8 @@ GradesShowMachine=false
  GetReturnsNumbers=true
  
  [TextBanner]
@@ -3191,7 +3305,7 @@ index 2dbe13e..2c9468e 100644
  ArtistOnCommand=visible,false
  AfterSetCommand=%TextBannerAfterSet
  
-@@ -1674,9 +1756,11 @@ BannerOnCommand=scaletoclipped,418,164;visible,false;
+@@ -1674,9 +1760,11 @@ BannerOnCommand=scaletoclipped,418,164;visible,false;
  HeaderOnCommand=draworder,101
  FooterOnCommand=draworder,101
  
@@ -3205,7 +3319,7 @@ index 2dbe13e..2c9468e 100644
  MusicWheelOffCommand=linear,0.2;diffusealpha,0;
  
  MusicWheelCodeMessageCommand=%function(self, params) \
-@@ -1844,7 +1928,8 @@ MeterOnCommand=visible,false
+@@ -1844,7 +1932,8 @@ MeterOnCommand=visible,false
  HeaderOnCommand=visible,false
  FooterOnCommand=visible,false
  
