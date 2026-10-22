@@ -123,6 +123,7 @@ void ScreenOptions::Init() {
       m_sName, "AllowRepeatingChangeValueInput");
   CURSOR_TWEEN_SECONDS.Load(m_sName, "CursorTweenSeconds");
   WRAP_VALUE_IN_ROW.Load(m_sName, "WrapValueInRow");
+  EXPORT_ON_BACK.Load(m_sName, "ExportOnBack");
   OPTION_ROW_NORMAL_METRICS_GROUP.Load(m_sName, "OptionRowNormalMetricsGroup");
   OPTION_ROW_EXIT_METRICS_GROUP.Load(m_sName, "OptionRowExitMetricsGroup");
 
@@ -861,6 +862,15 @@ void ScreenOptions::AfterChangeValueOrRow(PlayerNumber pn) {
 }
 
 bool ScreenOptions::MenuBack(const InputEventPlus&) {
+  // Back normally discards the changes; with ExportOnBack it keeps them, the
+  // same way leaving through the Exit row does, then returns to PrevScreen.
+  if (EXPORT_ON_BACK) {
+    if (!IsTransitioning()) {
+      m_sNextScreen = GetPrevScreen();
+      StartTransitioningScreen(SM_ExportOptions);
+    }
+    return true;
+  }
   Cancel(SM_GoToPrevScreen);
   return true;
 }
