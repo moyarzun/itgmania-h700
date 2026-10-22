@@ -453,6 +453,17 @@ void Sprite::UpdateAnimationState() {
  *
  * (I'd like to handle sprite and movie animation as consistently as possible;
  * the above is just documentation of current practice.) -glenn */
+// Show a non-decoding movie's first frame, and only that one: never advance
+// the movie clock, and leave a texture that already has a frame alone, so
+// every still view of a movie (whoever loaded it, however long it waited for
+// the decoder) settles on the same frame.
+void Sprite::PullFirstMovieFrame() {
+  if (!m_pTexture->HasDecodedFirstFrame()) {
+    m_pTexture->UpdateMovie(0);
+  }
+  m_bGotFirstMovieFrame = m_pTexture->HasDecodedFirstFrame();
+}
+
 // todo: see if "current" practice is just that. -aj
 void Sprite::Update(float fDelta) {
   Actor::Update(fDelta);  // do tweening
@@ -461,6 +472,12 @@ void Sprite::Update(float fDelta) {
   m_bSkipNextUpdate = false;
 
   if (!m_bIsAnimating) {
+    // A movie texture holds uninitialized memory until its first frame is
+    // uploaded (garbage on drivers that don't zero new textures), so pull
+    // that frame even when animation is paused, e.g. animate(false).
+    if (m_pTexture && !m_bGotFirstMovieFrame && !bSkipThisMovieUpdate) {
+      PullFirstMovieFrame();
+    }
     return;
   }
 
@@ -478,15 +495,14 @@ void Sprite::Update(float fDelta) {
   UpdateAnimationState();
 
   // If the texture is a movie, decode frames. Even when animation is
-  // disabled (m_DecodeMovie == false, e.g. AnimateBanners off), keep pulling
-  // frames until the first real one lands -- otherwise the sprite is left
-  // showing CreateTexture()'s blank initial content forever instead of a
-  // representative still frame. Once we have one, stop for good.
-  if (!bSkipThisMovieUpdate &&
-      (m_DecodeMovie || !m_bGotFirstMovieFrame)) {
-    m_pTexture->UpdateMovie(std::max(0.0f, fTimePassed));
-    if (!m_DecodeMovie) {
-      m_bGotFirstMovieFrame = m_pTexture->HasDecodedFirstFrame();
+  // disabled (m_DecodeMovie == false, e.g. AnimateBanners off), pull the first
+  // real frame -- otherwise the sprite is left showing CreateTexture()'s blank
+  // initial content forever instead of a representative still frame.
+  if (!bSkipThisMovieUpdate) {
+    if (m_DecodeMovie) {
+      m_pTexture->UpdateMovie(std::max(0.0f, fTimePassed));
+    } else if (!m_bGotFirstMovieFrame) {
+      PullFirstMovieFrame();
     }
   }
 

@@ -129,8 +129,9 @@ class Sprite : public Actor {
   bool m_bSkipNextUpdate;
   // When m_DecodeMovie is false (e.g. AnimateBanners off), we still want to
   // display a real decoded frame instead of the blank texture CreateTexture()
-  // starts with -- keep pulling frames until the first one lands, then stop.
+  // starts with -- pull the first frame (PullFirstMovieFrame), then stop.
   bool m_bGotFirstMovieFrame;
+  void PullFirstMovieFrame();
   /**
    * @brief Set up the coordinates for the texture.
    *
