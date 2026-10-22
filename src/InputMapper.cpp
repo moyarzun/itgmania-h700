@@ -766,12 +766,13 @@ void InputMapper::SanityCheckMappings(std::vector<std::string>& reason) {
   // This is just to check whether the current mapping has the minimum
   // necessary to navigate the menus so the user can reach the config screen.
   // For this purpose, only the following keys are needed:
-  // MenuLeft, MenuRight, Start, Operator
+  // MenuLeft, MenuRight, Start
   // The InputScheme handles OnlyDedicatedMenuButtons logic. -Kyz
+  // Not Operator: handhelds reach the config screen from the theme's options
+  // menu, and many have no spare button for it.
   CheckButtonAndAddToReason(GAME_BUTTON_MENULEFT, reason, "MenuLeftMissing");
   CheckButtonAndAddToReason(GAME_BUTTON_MENURIGHT, reason, "MenuRightMissing");
   CheckButtonAndAddToReason(GAME_BUTTON_START, reason, "StartMissing");
-  CheckButtonAndAddToReason(GAME_BUTTON_OPERATOR, reason, "OperatorMissing");
 }
 
 static LocalizedString CONNECTED("InputMapper", "Connected");

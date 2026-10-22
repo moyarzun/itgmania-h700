@@ -385,6 +385,36 @@ static bool IsAxis(const DeviceInput& DeviceI) {
   return false;
 }
 
+// This screen is driven by keyboard keys, which a handheld may not have: the
+// built-in pad (InputHandler_SDL's Joy1) stands in for them -- D-pad for the
+// arrows, east face button for Enter, south for Esc, west for Delete.
+static DeviceButton NavigationKey(const DeviceInput& di) {
+  if (di.device == DEVICE_KEYBOARD) {
+    return di.button;
+  }
+  if (di.device != DEVICE_JOY1) {
+    return DeviceButton_Invalid;
+  }
+  switch (di.button) {
+    case JOY_HAT_UP:
+      return KEY_UP;
+    case JOY_HAT_DOWN:
+      return KEY_DOWN;
+    case JOY_HAT_LEFT:
+      return KEY_LEFT;
+    case JOY_HAT_RIGHT:
+      return KEY_RIGHT;
+    case JOY_BUTTON_2:
+      return KEY_ENTER;
+    case JOY_BUTTON_1:
+      return KEY_ESC;
+    case JOY_BUTTON_3:
+      return KEY_DEL;
+    default:
+      return DeviceButton_Invalid;
+  }
+}
+
 bool ScreenMapControllers::Input(const InputEventPlus& input) {
   if (m_fLockInputSecs > 0.0f) {
     return false;
@@ -392,8 +422,7 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
 
   if (m_AutoDismissWarningSecs > 0.0f) {
     if (input.type == IET_FIRST_PRESS &&
-        input.DeviceI.device == DEVICE_KEYBOARD &&
-        input.DeviceI.button == KEY_ENTER) {
+        NavigationKey(input.DeviceI) == KEY_ENTER) {
       m_AutoDismissWarningSecs = 0.0f;
       DismissWarning();
     }
@@ -402,8 +431,7 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
 
   if (m_AutoDismissNoSetListPromptSecs > 0.0f) {
     if (input.type == IET_FIRST_PRESS &&
-        input.DeviceI.device == DEVICE_KEYBOARD &&
-        input.DeviceI.button == KEY_ENTER) {
+        NavigationKey(input.DeviceI) == KEY_ENTER) {
       m_AutoDismissNoSetListPromptSecs = 0.0f;
       m_NoSetListPrompt->PlayCommand("TweenOff");
     }
@@ -412,8 +440,7 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
 
   if (m_AutoDismissSanitySecs > 0.0f) {
     if (input.type == IET_FIRST_PRESS &&
-        input.DeviceI.device == DEVICE_KEYBOARD &&
-        input.DeviceI.button == KEY_ENTER) {
+        NavigationKey(input.DeviceI) == KEY_ENTER) {
       m_AutoDismissSanitySecs = 0.0f;
       m_SanityMessage->PlayCommand("TweenOff");
     }
@@ -431,7 +458,6 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
   // -Kyz LOG->Trace( "ScreenMapControllers::Input():  device: %d, button: %d",
   // 	input.DeviceI.device, input.DeviceI.button );
 
-  int button = input.DeviceI.button;
   bool bHandled = false;
 
   /* TRICKY: Some adapters map the PlayStation digital d-pad to both axes and
@@ -460,8 +486,8 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
 
       m_DeviceIToMap = input.DeviceI;
     }
-  } else if (input.DeviceI.device == DEVICE_KEYBOARD) {
-    switch (button) {
+  } else if (NavigationKey(input.DeviceI) != DeviceButton_Invalid) {
+    switch (NavigationKey(input.DeviceI)) {
         /* We only advertise space as doing this, but most games use either
          * delete or backspace, and I find them more intuitive, so allow them,
          * too. -gm */
@@ -577,6 +603,8 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
         }
         StartWaitingForPress();
         SCREENMAN->PlayStartSound();
+        break;
+      default:
         break;
     }
   }
