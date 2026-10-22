@@ -1551,6 +1551,16 @@ bool ScreenSelectMusic::MenuBack(const InputEventPlus& /* input */) {
   }
   */
 
+  // Back closes the open folder one level at a time; only with every folder
+  // closed does it leave (and ask first, if CONFIRM_EXIT).
+  if (m_SelectionState == SelectionState_SelectingSong &&
+      !GAMESTATE->IsAnExtraStageAndSelectionLocked() &&
+      !m_MusicWheel.WheelIsLocked() && !m_MusicWheel.IsRouletting() &&
+      m_MusicWheel.CloseOpenSectionOneLevel()) {
+    AfterMusicChange();
+    return true;
+  }
+
   Cancel(SM_GoToPrevScreen);
   return true;
 }
