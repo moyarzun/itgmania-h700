@@ -62,6 +62,7 @@
 #include "ScreenManager.h"
 
 #include <algorithm>
+#include <utility>
 #include <map>
 #include <set>
 #include <string>
@@ -464,9 +465,11 @@ void ScreenManager::Update(float fDeltaTime) {
   // The built-in pad's A and B (InputHandler_SDL's Joy1 JOY_BUTTON_1/_2) are
   // confirm/back in menus, as in SDL games -- the CFW's button layout setting
   // decides which physical buttons those are -- but dance-panel steps in
-  // gameplay, where the face buttons are a second set of arrows at SDL's
-  // standard positions: A (south) Down, B (east) Right (X Left and Y Up are
-  // fixed in Keymaps.ini). A raw button maps to one GameButton globally, so
+  // gameplay, where the face buttons are a second set of arrows: A (south)
+  // Down and B (east) Right at SDL's standard positions, with X Left and Y Up
+  // in Keymaps.ini. On a Nintendo-style layout (e.g. muOS "retro") the player
+  // maps X to Up instead, and then A is east (Right) and B south (Down).
+  // A raw button maps to one GameButton globally, so
   // re-point these two slot-1 mappings whenever a gameplay screen comes or
   // goes. Keymaps.ini holds the menu role, which is what the game boots into.
   {
@@ -480,6 +483,13 @@ void ScreenManager::Update(float fDeltaTime) {
       if (bIsGameplayNow) {
         GameButton gbDown = StringToGameButton(pScheme, "Down");
         GameButton gbRight = StringToGameButton(pScheme, "Right");
+        GameInput giX;
+        bool bXIsUp =
+            INPUTMAPPER->DeviceToGame(DeviceInput(DEVICE_JOY1, JOY_BUTTON_3), giX) &&
+            giX.button == StringToGameButton(pScheme, "Up");
+        if (bXIsUp) {
+          std::swap(gbDown, gbRight);
+        }
         if (gbDown != GameButton_Invalid)
           INPUTMAPPER->SetInputMap(
               diA, GameInput(GameController_1, gbDown), 1);

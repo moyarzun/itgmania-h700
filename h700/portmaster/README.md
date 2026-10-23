@@ -27,8 +27,9 @@ Songs: *Goin' Under* by NegaRen (chart by Fraxtil), *Mecha-Tribe Assault* and
 
 A, B, X and Y follow your CFW's button layout setting (e.g. muOS's modern or
 retro layout). In gameplay the face buttons are a second set of arrows at their
-standard (modern) positions; remap them in Options > Config Key/Joy Mappings
-if your layout puts them elsewhere.
+standard (modern) positions. On a Nintendo-style layout (muOS retro), map Up to
+the top button (X) and Left to the left one (Y) in Options > Config Key/Joy
+Mappings; A and B then follow as Right and Down.
 
 | Button | Menus | Gameplay |
 |--|--|--|
