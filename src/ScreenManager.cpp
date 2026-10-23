@@ -461,37 +461,36 @@ void ScreenManager::Update(float fDeltaTime) {
 
   Screen* pScreen = g_ScreenStack.empty() ? nullptr : GetTopScreen();
 
-  // The built-in pad's east and south face buttons (InputHandler_SDL's Joy1;
-  // SDL buttons are positional: JOY_BUTTON_1 south, _2 east, _3 west, _4
-  // north) are confirm/back in menus -- east confirms, as on muOS and other
-  // Nintendo-style handhelds -- but dance-panel steps in gameplay, where the
-  // face buttons are a second set of arrows by position: east Right, south
-  // Down (north Up and west Left are fixed in Keymaps.ini). A raw button maps
-  // to one GameButton globally, so re-point these two slot-1 mappings
-  // whenever a gameplay screen comes or goes. Keymaps.ini holds the menu
-  // role, which is what the game boots into.
+  // The built-in pad's A and B (InputHandler_SDL's Joy1 JOY_BUTTON_1/_2) are
+  // confirm/back in menus, as in SDL games -- the CFW's button layout setting
+  // decides which physical buttons those are -- but dance-panel steps in
+  // gameplay, where the face buttons are a second set of arrows at SDL's
+  // standard positions: A (south) Down, B (east) Right (X Left and Y Up are
+  // fixed in Keymaps.ini). A raw button maps to one GameButton globally, so
+  // re-point these two slot-1 mappings whenever a gameplay screen comes or
+  // goes. Keymaps.ini holds the menu role, which is what the game boots into.
   {
     static bool s_bWasGameplay = false;
     bool bIsGameplayNow = pScreen && pScreen->GetScreenType() == gameplay;
     if (bIsGameplayNow != s_bWasGameplay) {
       s_bWasGameplay = bIsGameplayNow;
       const InputScheme* pScheme = INPUTMAPPER->GetInputScheme();
-      DeviceInput diEast(DEVICE_JOY1, JOY_BUTTON_2);
-      DeviceInput diSouth(DEVICE_JOY1, JOY_BUTTON_1);
+      DeviceInput diA(DEVICE_JOY1, JOY_BUTTON_1);
+      DeviceInput diB(DEVICE_JOY1, JOY_BUTTON_2);
       if (bIsGameplayNow) {
-        GameButton gbRight = StringToGameButton(pScheme, "Right");
         GameButton gbDown = StringToGameButton(pScheme, "Down");
-        if (gbRight != GameButton_Invalid)
-          INPUTMAPPER->SetInputMap(
-              diEast, GameInput(GameController_1, gbRight), 1);
+        GameButton gbRight = StringToGameButton(pScheme, "Right");
         if (gbDown != GameButton_Invalid)
           INPUTMAPPER->SetInputMap(
-              diSouth, GameInput(GameController_1, gbDown), 1);
+              diA, GameInput(GameController_1, gbDown), 1);
+        if (gbRight != GameButton_Invalid)
+          INPUTMAPPER->SetInputMap(
+              diB, GameInput(GameController_1, gbRight), 1);
       } else {
         INPUTMAPPER->SetInputMap(
-            diEast, GameInput(GameController_1, GAME_BUTTON_START), 1);
+            diA, GameInput(GameController_1, GAME_BUTTON_START), 1);
         INPUTMAPPER->SetInputMap(
-            diSouth, GameInput(GameController_1, GAME_BUTTON_BACK), 1);
+            diB, GameInput(GameController_1, GAME_BUTTON_BACK), 1);
       }
     }
   }

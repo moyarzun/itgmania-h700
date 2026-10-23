@@ -24,8 +24,10 @@ Engine (commits on top of `v1.3.0`, see `git log v1.3.0..h700`):
   `Keymaps.ini` names the same buttons (`Joy1_B1`...) on every device; it polls
   at 1 ms and timestamps each press. Also: ignore muOS's virtual "Mouse" evdev
   device, no automatic keyboard mappings (one press must reach the engine
-  once), face buttons that confirm/go back in menus and are arrows in
-  gameplay, a protected built-in controls slot in the key-mapping screen.
+  once), A/B that confirm/go back in menus (the CFW's layout setting decides
+  which physical buttons) and face buttons that are arrows in gameplay, pad
+  navigation and a protected built-in controls slot in the key-mapping
+  screen.
 - **Bug fixes**: ALSA position during XRUN, Course/Nonstop-mode iterator
   crash, a profile leak, movie banners showing their first frame when banner
   animation is off, missing on-screen keyboard assets in `_fallback`.

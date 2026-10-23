@@ -387,7 +387,7 @@ static bool IsAxis(const DeviceInput& DeviceI) {
 
 // This screen is driven by keyboard keys, which a handheld may not have: the
 // built-in pad (InputHandler_SDL's Joy1) stands in for them -- D-pad for the
-// arrows, east face button for Enter, south for Esc, west for Delete.
+// arrows, A for Enter, B for Esc, X for Delete.
 static DeviceButton NavigationKey(const DeviceInput& di) {
   if (di.device == DEVICE_KEYBOARD) {
     return di.button;
@@ -404,9 +404,9 @@ static DeviceButton NavigationKey(const DeviceInput& di) {
       return KEY_LEFT;
     case JOY_HAT_RIGHT:
       return KEY_RIGHT;
-    case JOY_BUTTON_2:
-      return KEY_ENTER;
     case JOY_BUTTON_1:
+      return KEY_ENTER;
+    case JOY_BUTTON_2:
       return KEY_ESC;
     case JOY_BUTTON_3:
       return KEY_DEL;

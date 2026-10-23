@@ -25,15 +25,18 @@ Songs: *Goin' Under* by NegaRen (chart by Fraxtil), *Mecha-Tribe Assault* and
 
 ## Controls
 
-Face buttons are named by position, since labels differ between devices.
+A, B, X and Y follow your CFW's button layout setting (e.g. muOS's modern or
+retro layout). In gameplay the face buttons are a second set of arrows at their
+standard (modern) positions; remap them in Options > Config Key/Joy Mappings
+if your layout puts them elsewhere.
 
 | Button | Menus | Gameplay |
 |--|--|--|
 | D-pad | Move | Arrows |
-| Right face button, Start | Confirm | Right arrow (face button) |
-| Bottom face button, Select | Back | Down arrow (face button) |
-| Top face button | | Up arrow |
-| Left face button | | Left arrow |
+| A, Start | Confirm | Down arrow (A) |
+| B, Select | Back | Right arrow (B) |
+| Y | | Up arrow |
+| X | | Left arrow |
 
 Key mappings can be changed in Options > Config Key/Joy Mappings. The first
 column is reserved for the built-in controls; use the second to add another
