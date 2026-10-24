@@ -228,13 +228,14 @@ void Alsa9Buf::GetSoundCardDebugInfo() {
   }
 }
 
-Alsa9Buf::Alsa9Buf() {
+Alsa9Buf::Alsa9Buf() : pcm_mutex("Alsa9Buf") {
   samplerate = 44100;
   samplebits = 16;
   last_cursor_pos = 0;
   preferred_writeahead = 8192;
   preferred_chunksize = 1024;
   pcm = nullptr;
+  recent_recovers = 0;
 }
 
 std::string Alsa9Buf::Init(
@@ -325,6 +326,21 @@ int Alsa9Buf::GetNumFramesToFill() {
   if (avail_frames < 0) {
     Recover(avail_frames);
     avail_frames = dsnd_pcm_avail_update(pcm);
+
+    // After a stall (suspend/resume, heavy screen loads) PipeWire's plugin can
+    // fall back into XRUN about every 100 ms and prepare never revives it; a
+    // fresh PCM does.
+    const auto now = std::chrono::steady_clock::now();
+    if (recent_recovers == 0 ||
+        now - recover_window_start > std::chrono::seconds(2)) {
+      recover_window_start = now;
+      recent_recovers = 0;
+    }
+    if (++recent_recovers >= 5) {
+      recent_recovers = 0;
+      Reopen();
+      avail_frames = dsnd_pcm_avail_update(pcm);
+    }
   }
 
   if (avail_frames < 0) {
@@ -415,7 +431,33 @@ bool Alsa9Buf::Recover(int r) {
   return false;
 }
 
+void Alsa9Buf::Reopen() {
+  LOG->Trace("RageSound_ALSA9: stream keeps falling into XRUN, reopening it");
+
+  snd_pcm_t* fresh;
+  int err = dsnd_pcm_open(
+      &fresh, DeviceName().c_str(), SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
+  ALSA_ASSERT("dsnd_pcm_open (Reopen)");
+  if (err < 0) {
+    return;
+  }
+
+  LockMut(pcm_mutex);
+  snd_pcm_t* old = pcm;
+  pcm = fresh;
+  if (!SetHWParams()) {
+    dsnd_pcm_close(fresh);
+    pcm = old;
+    return;
+  }
+  SetSWParams();
+  // last_cursor_pos keeps counting from the old stream, so the music clock
+  // stays monotonic across the swap.
+  dsnd_pcm_close(old);
+}
+
 int64_t Alsa9Buf::GetPosition() const {
+  LockMut(pcm_mutex);
   // SND_PCM_STATE_XRUN (the instant an underrun happens, before Recover()
   // gets a chance to snd_pcm_prepare() it back to PREPARED) used to fall
   // through to dsnd_pcm_delay() below. snd_pcm_delay() returns -EPIPE for a
