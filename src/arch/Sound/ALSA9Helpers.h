@@ -1,12 +1,15 @@
 #ifndef ALSA9_HELPERS_H
 #define ALSA9_HELPERS_H
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
 #include <alsa/asoundlib.h>
+
+#include "RageThreads.h"
 
 class Alsa9Buf {
  private:
@@ -19,8 +22,15 @@ class Alsa9Buf {
   snd_pcm_uframes_t writeahead, chunksize;
 
   snd_pcm_t* pcm;
+  // Reopen() swaps pcm on the mixer thread while GetPosition() reads it from
+  // the main thread.
+  mutable RageMutex pcm_mutex;
+
+  int recent_recovers;
+  std::chrono::steady_clock::time_point recover_window_start;
 
   bool Recover(int r);
+  void Reopen();
   bool SetHWParams();
   bool SetSWParams();
 
