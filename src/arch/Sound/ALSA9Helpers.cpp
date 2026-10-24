@@ -320,9 +320,9 @@ int Alsa9Buf::GetNumFramesToFill() {
     }
   }
 
-  // SetSWParams()'s stop threshold doesn't stop every backend from entering XRUN
-  // (PipeWire's ALSA plugin does after a long stall); without a prepare it
-  // stays there and every later call returns -EPIPE, silencing all sound.
+  // SetSWParams()'s stop threshold doesn't stop every backend from entering
+  // XRUN (PipeWire's ALSA plugin does after a long stall); without a prepare
+  // it stays there and every later call returns -EPIPE, silencing all sound.
   if (avail_frames < 0) {
     Recover(avail_frames);
     avail_frames = dsnd_pcm_avail_update(pcm);
